@@ -1,0 +1,217 @@
+import json
+from datetime import datetime, timezone
+
+from agno.tools.decorator import tool
+
+from services.token_manager import TokenManager
+
+
+def create_calendar_tools(token_manager: TokenManager, user_id: str) -> list:
+    """Create Outlook Calendar tool functions with credentials bound via closure."""
+
+    async def _get_calendar():
+        account = await token_manager.get_account(user_id)
+        schedule = account.schedule()
+        return schedule.get_default_calendar()
+
+    @tool
+    async def list_events(time_min: str = "", time_max: str = "", max_results: int = 10) -> str:
+        """List upcoming calendar events.
+
+        Args:
+            time_min: Start time in ISO format (e.g. '2024-01-15T00:00:00Z'). Defaults to now.
+            time_max: End time in ISO format. Defaults to end of today.
+            max_results: Maximum events to return. Default 10.
+        """
+        calendar = await _get_calendar()
+
+        now = datetime.now(timezone.utc)
+        start = datetime.fromisoformat(time_min) if time_min else now
+        if time_max:
+            end = datetime.fromisoformat(time_max)
+        else:
+            end = now.replace(hour=23, minute=59, second=59)
+
+        query = calendar.new_query("start").greater_equal(start)
+        query.chain("and").on_attribute("end").less_equal(end)
+
+        events_iter = calendar.get_events(query=query, limit=max_results, include_recurring=True)
+
+        events = []
+        for event in events_iter:
+            location_str = ""
+            if event.location:
+                location_str = (
+                    event.location.get("displayName", str(event.location))
+                    if isinstance(event.location, dict)
+                    else str(event.location)
+                )
+
+            attendee_list = []
+            if event.attendees:
+                for att in event.attendees:
+                    attendee_list.append(str(att))
+
+            events.append(
+                {
+                    "id": event.object_id,
+                    "summary": event.subject or "(no title)",
+                    "start": event.start.isoformat() if event.start else "",
+                    "end": event.end.isoformat() if event.end else "",
+                    "location": location_str,
+                    "attendees": attendee_list,
+                    "is_all_day": event.is_all_day,
+                }
+            )
+
+        return json.dumps(events)
+
+    @tool
+    async def get_event(event_id: str) -> str:
+        """Get details of a specific calendar event.
+
+        Args:
+            event_id: The Outlook calendar event ID.
+        """
+        calendar = await _get_calendar()
+        event = calendar.get_event(object_id=event_id)
+
+        if not event:
+            return json.dumps({"error": "Event not found"})
+
+        location_str = ""
+        if event.location:
+            location_str = (
+                event.location.get("displayName", str(event.location))
+                if isinstance(event.location, dict)
+                else str(event.location)
+            )
+
+        attendee_list = []
+        if event.attendees:
+            for att in event.attendees:
+                attendee_list.append(str(att))
+
+        return json.dumps(
+            {
+                "id": event.object_id,
+                "summary": event.subject or "",
+                "start": event.start.isoformat() if event.start else "",
+                "end": event.end.isoformat() if event.end else "",
+                "location": location_str,
+                "description": event.body or "",
+                "attendees": attendee_list,
+                "organizer": str(event.organizer) if event.organizer else "",
+                "is_all_day": event.is_all_day,
+                "web_link": getattr(event, "web_link", "") or "",
+            }
+        )
+
+    @tool(requires_confirmation=True)
+    async def create_event(
+        summary: str,
+        start_time: str,
+        end_time: str,
+        description: str = "",
+        attendees: str = "",
+        location: str = "",
+    ) -> str:
+        """Create a new calendar event.
+
+        Args:
+            summary: Event title.
+            start_time: Start time in ISO format (e.g. '2024-01-15T14:00:00-05:00').
+            end_time: End time in ISO format.
+            description: Event description. Optional.
+            attendees: Comma-separated email addresses of attendees. Optional.
+            location: Event location. Optional.
+        """
+        calendar = await _get_calendar()
+        event = calendar.new_event()
+
+        event.subject = summary
+        event.start = datetime.fromisoformat(start_time)
+        event.end = datetime.fromisoformat(end_time)
+
+        if description:
+            event.body = description
+        if location:
+            event.location = location
+        if attendees:
+            for email in attendees.split(","):
+                event.attendees.add(email.strip())
+
+        event.save()
+
+        return json.dumps(
+            {
+                "status": "created",
+                "id": event.object_id,
+                "summary": event.subject,
+            }
+        )
+
+    @tool(requires_confirmation=True)
+    async def update_event(
+        event_id: str,
+        summary: str = "",
+        start_time: str = "",
+        end_time: str = "",
+        description: str = "",
+        attendees: str = "",
+        location: str = "",
+    ) -> str:
+        """Update an existing calendar event.
+
+        Args:
+            event_id: The Outlook calendar event ID.
+            summary: New event title. Optional.
+            start_time: New start time in ISO format. Optional.
+            end_time: New end time in ISO format. Optional.
+            description: New description. Optional.
+            attendees: Comma-separated emails. Replaces existing attendees. Optional.
+            location: New location. Optional.
+        """
+        calendar = await _get_calendar()
+        event = calendar.get_event(object_id=event_id)
+
+        if not event:
+            return json.dumps({"error": "Event not found"})
+
+        if summary:
+            event.subject = summary
+        if start_time:
+            event.start = datetime.fromisoformat(start_time)
+        if end_time:
+            event.end = datetime.fromisoformat(end_time)
+        if description:
+            event.body = description
+        if location:
+            event.location = location
+        if attendees:
+            event.attendees.clear()
+            for email in attendees.split(","):
+                event.attendees.add(email.strip())
+
+        event.save()
+
+        return json.dumps({"status": "updated", "id": event.object_id})
+
+    @tool(requires_confirmation=True)
+    async def delete_event(event_id: str) -> str:
+        """Delete a calendar event.
+
+        Args:
+            event_id: The Outlook calendar event ID to delete.
+        """
+        calendar = await _get_calendar()
+        event = calendar.get_event(object_id=event_id)
+
+        if not event:
+            return json.dumps({"error": "Event not found"})
+
+        event.delete()
+
+        return json.dumps({"status": "deleted", "id": event_id})
+
+    return [list_events, get_event, create_event, update_event, delete_event]
