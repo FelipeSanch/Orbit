@@ -47,7 +47,8 @@ decide to pay for SendBlue.
 ## Non-goals
 
 - Schema changes beyond:
-  - `verifications` table reuse for SMS codes (already exists, just new identifier prefix).
+  - New `sms_verifications` table for SMS code storage (avoids coupling
+    to Better Auth's `verifications` table).
   - `jwks` table dropped.
 - Frontend redesign. Existing UI stays; new modal matches existing Hub style.
 - Phase 6 proactive agents (cron, daily briefings). Separate future spec.
@@ -77,7 +78,7 @@ Inventory of values currently scattered across files, with the proposed home for
 | Affirmative/negative SMS vocab | `sms_dispatch.py` | Keep where used (single consumer). Document why. |
 | Attachment text-truncate `8000` | `tools/email.py` | `constants.py: EMAIL_ATTACHMENT_MAX_CHARS` |
 | Default folder/calendar `"primary"` | `tools/google_calendar.py` | Keep — Google API convention, not Orbit policy. |
-| `claude-sonnet-4-6` pricing assumption | implicit in `usage.py` | Add `MODEL_PRICING: dict[str, tuple[float, float]]` — `(input, output)` per million tokens. Future-proofs for Haiku tracking. |
+| `claude-sonnet-4-6` pricing assumption | implicit in `usage.py` | Add `MODEL_PRICING: dict[str, tuple[float, float]]` — `(input, output)` per million tokens. See "MODEL_PRICING miss behavior" below. |
 
 Two new files:
 - `backend/constants.py` — pure-Python module. No imports from `config.py`.
@@ -88,6 +89,15 @@ Two new files:
 The vocabulary lists (`_AFFIRMATIVE`, `_NEGATIVE`) stay in `sms_dispatch.py`
 because they have one consumer and moving them to constants pollutes a shared
 file with domain-specific data. Documented with a comment.
+
+**`MODEL_PRICING` miss behavior:** When `usage.py` reads message metadata
+that names a model not in `MODEL_PRICING`, it logs a warning (`logger.warning(
+"Unknown model in usage metric: %s", model_id)`) and treats input/output costs
+as zero for that message. Rationale: cost tracking is observability, not
+safety-critical. Silent miscounting against a known model's price is worse
+than visible undercounting plus a log line. Test: temporarily emit a fake
+model_id in dev, confirm the warning fires and the daily total still computes
+without error.
 
 ### 2. Fallback acknowledgement redesign
 
@@ -131,21 +141,38 @@ that's a deliberate choice but it stays a known lie. Documented either way.
 plus optional Redis. Breaks on restart. Adds a second consumer of the bad
 pattern from `redis.py`.
 
-**Change:** Use Postgres via the existing `verifications` table from Better Auth.
-- Identifier: `f"sms-verify:{user_id}:{phone}"`
-- Value: 6-digit code (we don't need to hash for a 10-min-TTL ephemeral code,
-  but we will anyway for consistency).
-- ExpiresAt: `now + 10 minutes`.
-- After successful verify: row deleted.
-- Schema reuse, no migration needed.
+**Earlier draft (rejected):** Reuse Better Auth's `verifications` table with a
+prefixed identifier. Rejected because the table is owned by Better Auth — if
+they change the column shape, rename, or add constraints in a future version,
+the SMS flow breaks invisibly. "No migration needed" isn't worth the silent
+coupling. Owning the table is a one-line `drizzle-kit push` away.
 
-New repository: `backend/repositories/verifications.py` — `create`, `get`, `delete`.
-Pure SQL, ~30 lines.
+**Change:** Own the table. New `sms_verifications` table in
+`frontend/src/db/schema.ts`:
+```ts
+export const smsVerifications = pgTable("sms_verifications", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  userId: text("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  phone: text("phone").notNull(),
+  code: text("code").notNull(),
+  expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+}, (table) => [
+  index("idx_sms_verifications_user_phone").on(table.userId, table.phone),
+]);
+```
+- TTL: 10 minutes.
+- After successful verify: row deleted.
+- Schema-pushed via `drizzle-kit push` — counts as the one schema change in
+  this spec (the Non-goals section is updated accordingly).
+
+New repository: `backend/repositories/sms_verifications.py` — `create`, `get_active`,
+`delete`. Pure SQL, ~40 lines.
 
 The in-memory `_oauth_states` and `_oauth_pkce` fallbacks in `redis.py` are
 left as-is for this pass (their consumers are pre-existing and the fallback
-is documented). But they're added to the tech-debt log: a `verifications`-table
-or dedicated table approach would replace them too in a future pass.
+is documented). But they're added to the tech-debt log for a future pass to
+own dedicated tables for them too — same reasoning.
 
 ### 4. Approval-resume helpers (revised)
 
@@ -230,11 +257,32 @@ Same return shape as `get_current_user`. Both OAuth routes call it.
 `is_configured`. Callers (`sms_dispatch`, the new SMS verification routes) import
 from `twilio_client` directly. If we ever swap to SendBlue, every caller changes.
 
+**Earlier draft (rejected):** A `validate_inbound(url, params, signature) -> bool`
+signature was Twilio-shaped and would break on SendBlue (HMAC over raw body)
+or any other provider with a different inbound-auth model. The seam was in
+the right place; the shape was wrong.
+
 **Change:** New `services/messaging.py`:
 ```python
+class InboundMessage(NamedTuple):
+    from_address: str
+    body: str
+
 class MessagingProvider(Protocol):
-    async def send(self, to: str, body: str) -> str: ...      # returns provider message id
-    def validate_inbound(self, url, params, signature) -> bool: ...
+    async def send(self, to: str, body: str) -> str:
+        """Outbound. Returns provider message id."""
+
+    def validate_inbound(self, headers: dict[str, str], body: bytes) -> bool:
+        """Verify the inbound HTTP request was actually signed by this provider.
+
+        Each provider extracts what it needs from headers/body internally
+        (Twilio reconstructs URL + form params from headers, SendBlue does
+        HMAC over raw body, etc.). Routes never know provider specifics.
+        """
+
+    def parse_inbound(self, body: bytes, content_type: str) -> InboundMessage:
+        """Pull the from-address and message body out of a verified payload."""
+
     def is_configured(self) -> bool: ...
 
 def get_provider() -> MessagingProvider:
@@ -242,6 +290,17 @@ def get_provider() -> MessagingProvider:
 ```
 Callers import `get_provider()`. Twilio implementation stays in
 `services/twilio_client.py` but becomes an internal detail.
+
+The route layer (`api/routes/sms.py`) becomes provider-agnostic:
+```python
+provider = get_provider()
+if not provider.validate_inbound(dict(request.headers), raw_body):
+    return Response(status_code=403)
+inbound = provider.parse_inbound(raw_body, request.headers.get("content-type", ""))
+await handle_inbound_message(inbound.from_address, inbound.body)
+```
+The route doesn't know about Twilio form encoding, X-Twilio-Signature, or
+URL reconstruction. That's all Twilio-specific code inside `twilio_client.py`.
 
 This isn't speculative abstraction — it's drawing the seam where the real
 boundary is (provider replacement). Inside Twilio there's no SMS-vs-iMessage
@@ -302,14 +361,14 @@ this pass or logged as tech debt.
 **`POST /api/channels/sms/start`**
 - Auth: `get_current_user`.
 - Body: `{phone: string}` (E.164).
-- Generates 6-digit code, writes `verifications` row (10-min TTL).
+- Generates 6-digit code, writes `sms_verifications` row (10-min TTL).
 - Sends SMS via `messaging.get_provider().send(...)`.
 - Returns `{status: "sent"}`.
 
 **`POST /api/channels/sms/verify`**
 - Auth.
 - Body: `{phone: string, code: string}`.
-- Loads verification row, compares, deletes on success.
+- Loads matching active `sms_verifications` row, compares, deletes on success.
 - Calls `channels_repo.upsert_verified(user_id, "sms", phone)`.
 - Returns `{status: "verified"}`.
 
@@ -376,22 +435,48 @@ UX, the architecture won't fight you.
 Each step ends with a verification command. If any verification fails, stop
 and either fix or roll back before proceeding.
 
-1. **Hardcoded constants → `constants.py` + `config.py`.**
-   - Verify: `python -c "from constants import PRIMARY_MODEL; print(PRIMARY_MODEL)"`
-   - Verify: backend boots, chat round-trip works.
+1. **Hardcoded constants → `constants.py` + `config.py`.** Bundle by category,
+   not per-constant. The mechanical work doesn't justify per-commit smoke tests.
+   - Commit A: model IDs (`PRIMARY_MODEL`, `TITLER_MODEL`, `AGNO_HISTORY_RUNS`).
+   - Commit B: token-refresh + cache TTLs (`TOKEN_REFRESH_BUFFER_SECONDS`,
+     `OAUTH_STATE_TTL_SECONDS`, `PENDING_APPROVAL_TTL_MINUTES`,
+     `SMS_MAX_REPLY_CHARS`, `EMAIL_ATTACHMENT_MAX_CHARS`,
+     `RATE_LIMIT_REQUESTS`, `RATE_LIMIT_WINDOW_SECONDS`).
+   - Commit C: `default_timezone` to `config.py` (env-overridable, runtime
+     semantics — gets its own commit + smoke test that calendar tools still
+     work in the original zone).
+   - Commit D: `MODEL_PRICING` dict + miss-behavior wiring in `usage.py`
+     (new lookup behavior — gets its own commit + a fake-model-id test
+     confirming the warning fires and totals still compute).
+   - Verify after each commit: backend boots, chat round-trip works.
 2. **Repository helpers** — extract `_helpers.py`, update 6 imports.
    - Verify: `python -m compileall backend/repositories/`
    - Verify: `GET /api/conversations` returns same shape.
 3. **Approval-resume helpers** — move shared bits to `run_resume.py`,
    delete duplicates from `approve.py`. Implement `fallback_ack`.
+   - Note: `fallback_ack` produces "Done — send email. (System acknowledgement.)"
+     The tense is awkward (imperative-ish) where the old dict was past tense
+     ("Sent the email."). Accepted cost — disclosure suffix matters more than
+     grammar. If it grates in practice, revisit by switching to past-participle:
+     `f"{tool_name.replace('_', ' ').capitalize()}ed. (System acknowledgement.)"`
+     but that breaks for tools whose names don't take `-ed`.
    - Verify: web approval happy path streams.
    - Verify: web approval fallback fires when Agno session missing
      (kill backend mid-pause to simulate; expect `(System acknowledgement.)`
      suffix).
 4. **Calendar agent factory** — merge two agent files. Audit and unify
    tool JSON shapes.
+   - **Pre-merge audit (required):** `git grep "html_link" frontend/ backend/`.
+     If any frontend component, agent instruction, log, or downstream tool
+     reads `html_link`, either (a) update those consumers in the same commit,
+     or (b) keep both keys (`web_link` from Outlook, `html_link` from Google,
+     and `web_link` aliased to `html_link` from Google so old consumers don't
+     break). Schema changes downstream are the easiest regression vector
+     in this whole refactor.
    - Verify: calendar query routes to Google when connected, Outlook otherwise.
    - Verify: agent doesn't break on either backend.
+   - Verify: `git grep "html_link"` either returns nothing or only intentional
+     transitional aliasing.
 5. **OAuth helper** — extract `get_user_from_query_token`.
    - Verify: connect/disconnect Microsoft + Google from Hub.
 6. **Provider-agnostic messaging interface** — create `services/messaging.py`,
@@ -407,8 +492,9 @@ and either fix or roll back before proceeding.
    - Verify: chat streams + approval streams both work.
 9. **Settings status helpers** — add to `api.ts`, swap settings page.
    - Verify: integration dots update correctly on session load.
-10. **SMS verification backend** — `verifications` repository, four channel
-    endpoints, repo `delete_by_address` addition.
+10. **SMS verification backend** — push new `sms_verifications` table via
+    `drizzle-kit push`, build `repositories/sms_verifications.py`, four
+    channel endpoints, repo `delete_by_address` addition.
     - Verify (curl):
       - `POST /api/channels/sms/start` with valid phone → 200 + SMS arrives.
       - `POST /api/channels/sms/verify` with correct code → channel row exists.
