@@ -1,15 +1,16 @@
 from agno.agent import Agent
 from agno.models.anthropic import Claude
 
-from services.supabase import get_supabase_client
+from repositories import conversations as conv_repo
 
 _titler = Agent(
     name="Titler",
-    model=Claude(id="claude-sonnet-4-5-20250929"),
+    model=Claude(id="claude-haiku-4-5-20251001"),
     instructions=[
-        "Generate a concise 4-6 word title for a conversation.",
-        "Based on the user message and assistant response, capture the topic.",
-        "Return ONLY the title, no quotes, no explanation.",
+        "Generate a concise 3-5 word title for a conversation.",
+        "Capture the topic naturally — like a chat label, not a headline.",
+        "Return ONLY the title. No quotes, no punctuation at the end, "
+        "no 'Re:' or 'about'.",
     ],
     markdown=False,
 )
@@ -26,8 +27,6 @@ async def generate_conversation_title(
     response = await _titler.arun(prompt)
     title = (response.content or "New conversation").strip().strip('"')
 
-    get_supabase_client().table("conversations").update({"title": title}).eq(
-        "id", conversation_id
-    ).execute()
+    await conv_repo.update_title(conversation_id, title)
 
     return title

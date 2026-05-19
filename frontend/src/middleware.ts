@@ -1,60 +1,30 @@
-import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 
+const publicPaths = ["/", "/login"];
+
 export async function middleware(request: NextRequest) {
-  let response = NextResponse.next({ request });
+  const sessionCookie = request.cookies.get("better-auth.session_token");
+  const { pathname } = request.nextUrl;
 
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const supabaseAnonKey =
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ??
-    process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
+  const isPublic =
+    publicPaths.includes(pathname) ||
+    pathname.startsWith("/api/auth");
 
-  if (!supabaseUrl || !supabaseAnonKey) {
-    return response;
-  }
-
-  const supabase = createServerClient(
-    supabaseUrl,
-    supabaseAnonKey,
-    {
-      cookies: {
-        getAll() {
-          return request.cookies.getAll();
-        },
-        setAll(cookiesToSet) {
-          for (const { name, value } of cookiesToSet) {
-            request.cookies.set(name, value);
-          }
-          response = NextResponse.next({ request });
-          for (const { name, value, options } of cookiesToSet) {
-            response.cookies.set(name, value, options);
-          }
-        },
-      },
-    },
-  );
-
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  const isAuthPage =
-    request.nextUrl.pathname === "/login" ||
-    request.nextUrl.pathname === "/callback";
-
-  if (!user && !isAuthPage) {
+  // Unauthenticated users can only access public pages
+  if (!sessionCookie && !isPublic) {
     const url = request.nextUrl.clone();
     url.pathname = "/login";
     return NextResponse.redirect(url);
   }
 
-  if (user && isAuthPage) {
+  // Authenticated users on login page go to chat
+  if (sessionCookie && pathname === "/login") {
     const url = request.nextUrl.clone();
-    url.pathname = "/";
+    url.pathname = "/chat";
     return NextResponse.redirect(url);
   }
 
-  return response;
+  return NextResponse.next();
 }
 
 export const config = {

@@ -2,25 +2,171 @@
 
 :root {
   --background: #ffffff;
-  --foreground: #171717;
+  --foreground: #0f172a;
+  --muted: #f1f5f9;
+  --muted-foreground: #64748b;
+  --border: #e2e8f0;
+  --accent: #6366f1;
+  --accent-foreground: #ffffff;
+  --accent-muted: #eef2ff;
+  --surface: #ffffff;
+  --surface-raised: #f8fafc;
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-border: var(--border);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-accent-muted: var(--accent-muted);
+  --color-surface: var(--surface);
+  --color-surface-raised: var(--surface-raised);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+    --background: #0b0f1a;
+    --foreground: #e2e8f0;
+    --muted: #1e293b;
+    --muted-foreground: #94a3b8;
+    --border: #1e293b;
+    --accent: #818cf8;
+    --accent-foreground: #ffffff;
+    --accent-muted: #1e1b4b;
+    --surface: #0b0f1a;
+    --surface-raised: #0f172a;
   }
+}
+
+html {
+  scroll-behavior: smooth;
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-sans), system-ui, -apple-system, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--muted-foreground);
+}
+
+/* Typing animation */
+@keyframes blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0; }
+}
+
+.animate-blink {
+  animation: blink 1s ease-in-out infinite;
+}
+
+/* Fade in after splash */
+@keyframes fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.animate-fade-in {
+  animation: fade-in 0.6s ease-out forwards;
+}
+
+/* ─── Landing page animations ────────────────────────────────────── */
+
+/* Hero staggered entrance */
+@keyframes hero-enter {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.landing-hero-stagger {
+  opacity: 0;
+  animation: hero-enter 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+/* Gradient text shimmer */
+@keyframes gradient-shift {
+  0%, 100% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+}
+
+.landing-gradient-text {
+  background-size: 200% 200%;
+  animation: gradient-shift 4s ease-in-out infinite;
+}
+
+/* Star particle pulse */
+@keyframes pulse {
+  0%, 100% { opacity: var(--pulse-base, 0.3); transform: scale(1); }
+  50% { opacity: 1; transform: scale(1.4); }
+}
+
+/* Chat suggestion card stagger */
+@keyframes suggestion-enter {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-suggestion-enter {
+  animation: suggestion-enter 0.35s ease-out forwards;
+}
+
+/* Slide in from left for sidebar items */
+@keyframes slide-in {
+  from {
+    opacity: 0;
+    transform: translateX(-6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+/* Reduced motion: disable animations */
+@media (prefers-reduced-motion: reduce) {
+  .landing-hero-stagger {
+    opacity: 1;
+    animation: none;
+  }
+  .landing-gradient-text {
+    animation: none;
+  }
+  .animate-suggestion-enter {
+    animation: none;
+  }
 }

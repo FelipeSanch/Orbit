@@ -71,15 +71,19 @@ def create_tasks_tools(token_manager: TokenManager, user_id: str) -> list:
         return json.dumps(tasks)
 
     @tool
-    async def get_task(task_list_id: str, task_id: str) -> str:
+    async def get_task(task_id: str, task_list_id: str = "") -> str:
         """Get details of a specific task.
 
         Args:
-            task_list_id: Task list ID.
             task_id: The task ID.
+            task_list_id: Task list ID. Empty for the default list.
         """
         todo = await _get_todo()
-        folder = todo.get_folder(folder_id=task_list_id)
+        folder = (
+            todo.get_folder(folder_id=task_list_id)
+            if task_list_id
+            else todo.get_default_folder()
+        )
         task = folder.get_task(object_id=task_id)
 
         if not task:
@@ -141,23 +145,27 @@ def create_tasks_tools(token_manager: TokenManager, user_id: str) -> list:
 
     @tool(requires_confirmation=True)
     async def update_task(
-        task_list_id: str,
         task_id: str,
         title: str = "",
         body: str = "",
         due_date: str = "",
+        task_list_id: str = "",
     ) -> str:
         """Update an existing task.
 
         Args:
-            task_list_id: Task list ID.
             task_id: The task ID to update.
             title: New title. Optional.
             body: New description/notes. Optional.
             due_date: New due date in ISO format. Optional.
+            task_list_id: Task list ID. Empty for the default list.
         """
         todo = await _get_todo()
-        folder = todo.get_folder(folder_id=task_list_id)
+        folder = (
+            todo.get_folder(folder_id=task_list_id)
+            if task_list_id
+            else todo.get_default_folder()
+        )
         task = folder.get_task(object_id=task_id)
 
         if not task:
@@ -175,15 +183,19 @@ def create_tasks_tools(token_manager: TokenManager, user_id: str) -> list:
         return json.dumps({"status": "updated", "id": task.object_id})
 
     @tool(requires_confirmation=True)
-    async def complete_task(task_list_id: str, task_id: str) -> str:
+    async def complete_task(task_id: str, task_list_id: str = "") -> str:
         """Mark a task as completed.
 
         Args:
-            task_list_id: Task list ID.
             task_id: The task ID to complete.
+            task_list_id: Task list ID. Empty for the default list.
         """
         todo = await _get_todo()
-        folder = todo.get_folder(folder_id=task_list_id)
+        folder = (
+            todo.get_folder(folder_id=task_list_id)
+            if task_list_id
+            else todo.get_default_folder()
+        )
         task = folder.get_task(object_id=task_id)
 
         if not task:
@@ -201,15 +213,19 @@ def create_tasks_tools(token_manager: TokenManager, user_id: str) -> list:
         )
 
     @tool(requires_confirmation=True)
-    async def delete_task(task_list_id: str, task_id: str) -> str:
+    async def delete_task(task_id: str, task_list_id: str = "") -> str:
         """Delete a task.
 
         Args:
-            task_list_id: Task list ID.
             task_id: The task ID to delete.
+            task_list_id: Task list ID. Empty for the default list.
         """
         todo = await _get_todo()
-        folder = todo.get_folder(folder_id=task_list_id)
+        folder = (
+            todo.get_folder(folder_id=task_list_id)
+            if task_list_id
+            else todo.get_default_folder()
+        )
         task = folder.get_task(object_id=task_id)
 
         if not task:

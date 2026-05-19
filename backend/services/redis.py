@@ -84,3 +84,32 @@ def delete_oauth_state(state: str) -> None:
         client.delete(f"oauth_state:{state}")
     else:
         _oauth_states.pop(state, None)
+
+
+# ---------- PKCE code_verifier store (Google OAuth needs this across requests) ----------
+
+_oauth_pkce: dict[str, str] = {}
+
+
+def set_oauth_pkce(state: str, verifier: str, ex: int = 600) -> None:
+    client = get_redis_client()
+    if client is not None:
+        client.set(f"oauth_pkce:{state}", verifier, ex=ex)
+    else:
+        _oauth_pkce[state] = verifier
+
+
+def get_oauth_pkce(state: str) -> str | None:
+    client = get_redis_client()
+    if client is not None:
+        val = client.get(f"oauth_pkce:{state}")
+        return str(val) if val else None
+    return _oauth_pkce.get(state)
+
+
+def delete_oauth_pkce(state: str) -> None:
+    client = get_redis_client()
+    if client is not None:
+        client.delete(f"oauth_pkce:{state}")
+    else:
+        _oauth_pkce.pop(state, None)

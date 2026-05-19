@@ -2,7 +2,7 @@
 
 ## Overview
 
-Orbit uses Azure AD OAuth2 authorization code flow via MSAL to access Microsoft Graph API. A single app registration in Azure Portal covers Outlook Mail, Calendar, and To Do. Tokens are encrypted at rest using Fernet symmetric encryption.
+Orbit uses Azure AD OAuth2 authorization code flow via MSAL to access Microsoft Graph API. A single app registration in Azure Portal covers Outlook Mail, Calendar, and To Do. Tokens are encrypted at rest using Fernet symmetric encryption and stored in the `integrations` table on Neon via asyncpg.
 
 ## Scopes
 
@@ -16,7 +16,7 @@ Orbit uses Azure AD OAuth2 authorization code flow via MSAL to access Microsoft 
 ## Flow
 
 ```
-User        Frontend           Backend              Azure AD         Supabase
+User        Frontend           Backend              Azure AD         database
  │             │                  │                    │                │
  │  Click      │                  │                    │                │
  │  "Connect"  │                  │                    │                │
@@ -98,7 +98,7 @@ The O365 library provides Pythonic access to Microsoft Graph. After token refres
 
 ## Security
 
-- RLS policy on `integrations` restricts access to `service_role` only
+- `integrations` table only accessed by backend via repository layer
 - Frontend never sees raw tokens
 - Tokens encrypted at rest with Fernet
 - OAuth state parameter stored in Redis with 600s TTL to prevent CSRF

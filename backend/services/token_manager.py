@@ -7,8 +7,8 @@ from typing import TYPE_CHECKING
 import msal
 
 from config import settings
+from repositories import integrations as integ_repo
 from services.encryption import decrypt_token, encrypt_token
-from services.supabase import get_supabase_client
 
 if TYPE_CHECKING:
     from O365 import Account
@@ -19,21 +19,25 @@ MICROSOFT_SCOPES = [
     "Calendars.ReadWrite",
     "Tasks.ReadWrite",
     "User.Read",
-    "offline_access",
 ]
+
+# MSAL rejects these reserved scopes in token requests
+_RESERVED_SCOPES = {"openid", "offline_access", "profile"}
+
+# Refresh when the access token has fewer than this many seconds left.
+_REFRESH_BUFFER_SECONDS = 300
+
+# In-process cache of O365 Account objects. Rebuild them for free from the
+# access token, but skip the DB + MSAL round-trips when we already have a
+# live one for this user.
+_ACCOUNT_CACHE: dict[str, tuple[float, "Account"]] = {}
 
 
 class TokenManager:
     """Manages Microsoft OAuth tokens via MSAL."""
 
     def __init__(self) -> None:
-        self._client = None
         self._msal_app: msal.ConfidentialClientApplication | None = None
-
-    def _get_client(self):
-        if self._client is None:
-            self._client = get_supabase_client()
-        return self._client
 
     def _get_msal_app(self) -> msal.ConfidentialClientApplication:
         if self._msal_app is None:
@@ -50,6 +54,7 @@ class TokenManager:
             scopes=MICROSOFT_SCOPES,
             state=state,
             redirect_uri=settings.microsoft_redirect_uri,
+            response_mode="query",
         )
 
     async def exchange_code_and_store(self, user_id: str, code: str) -> None:
@@ -69,118 +74,111 @@ class TokenManager:
         scope_val = result.get("scope", "")
         scopes = scope_val.split() if isinstance(scope_val, str) else MICROSOFT_SCOPES
 
-        data = {
-            "user_id": user_id,
-            "provider": "microsoft",
-            "encrypted_access_token": encrypt_token(result["access_token"]),
-            "encrypted_refresh_token": encrypt_token(result.get("refresh_token", "")),
-            "token_expiry": expiry_dt.isoformat(),
-            "scopes": scopes,
-            "updated_at": datetime.now(timezone.utc).isoformat(),
-        }
+        await integ_repo.upsert(
+            user_id=user_id,
+            provider="microsoft",
+            encrypted_access_token=encrypt_token(result["access_token"]),
+            encrypted_refresh_token=encrypt_token(result.get("refresh_token", "")),
+            token_expiry=expiry_dt.isoformat(),
+            scopes=scopes,
+        )
 
-        self._get_client().table("integrations").upsert(
-            data, on_conflict="user_id,provider"
-        ).execute()
+        # Invalidate cached Account so the next call picks up the new token.
+        _ACCOUNT_CACHE.pop(user_id, None)
+
+    def _build_account(self, access_token: str) -> "Account":
+        """Construct an O365 Account pre-authed with the given access token."""
+        from O365 import Account as O365Account
+
+        credentials = (settings.microsoft_client_id, settings.microsoft_client_secret)
+        account = O365Account(
+            credentials,
+            tenant_id=settings.microsoft_tenant_id,
+        )
+        session = account.con.get_session(load_token=False)
+        session.headers.update({"Authorization": f"Bearer {access_token}"})
+        account.con.session = session
+        return account
 
     async def get_account(self, user_id: str) -> Account:
-        """Get an authenticated O365 Account, refreshing the token if needed."""
-        from O365 import Account as O365Account
-        from O365.utils import BaseTokenBackend
+        """Return an authenticated O365 Account for the user.
 
-        row = (
-            self._get_client()
-            .table("integrations")
-            .select("*")
-            .eq("user_id", user_id)
-            .eq("provider", "microsoft")
-            .single()
-            .execute()
-        ).data
+        Fast path: if we have a cached Account whose token is still fresh,
+        hand it back. Medium path: decrypt the stored access token if the DB
+        expiry is beyond the refresh buffer. Slow path: use MSAL to refresh.
+        """
+        now = time.time()
 
+        # Fast path — in-process cache, valid for a few minutes.
+        cached = _ACCOUNT_CACHE.get(user_id)
+        if cached and cached[0] > now:
+            return cached[1]
+
+        row = await integ_repo.get(user_id, "microsoft")
         if not row:
             raise ValueError("Microsoft account not connected")
 
-        access_token = decrypt_token(row["encrypted_access_token"])
+        token_expiry_raw = row.get("token_expiry")
+        if isinstance(token_expiry_raw, str):
+            expiry_dt = datetime.fromisoformat(token_expiry_raw)
+        elif isinstance(token_expiry_raw, datetime):
+            expiry_dt = token_expiry_raw
+        else:
+            expiry_dt = datetime.fromtimestamp(0, tz=timezone.utc)
+
+        seconds_left = expiry_dt.timestamp() - now
+
+        # Medium path — stored token still has comfortable life.
+        if seconds_left > _REFRESH_BUFFER_SECONDS:
+            access_token = decrypt_token(row["encrypted_access_token"])
+            if access_token:
+                account = self._build_account(access_token)
+                # Cache until refresh buffer would kick in.
+                cache_until = now + max(30, seconds_left - _REFRESH_BUFFER_SECONDS)
+                _ACCOUNT_CACHE[user_id] = (cache_until, account)
+                return account
+
+        # Slow path — refresh via MSAL.
         refresh_token = decrypt_token(row["encrypted_refresh_token"])
-        expiry = datetime.fromisoformat(row["token_expiry"])
-        scopes = row.get("scopes", MICROSOFT_SCOPES)
+        if not refresh_token:
+            raise ValueError("No refresh token available — please reconnect Microsoft")
 
-        # Refresh if token expires within 5 minutes
-        if expiry.timestamp() - time.time() < 300 and refresh_token:
-            result = self._get_msal_app().acquire_token_by_refresh_token(
-                refresh_token, scopes=scopes
-            )
-            if "error" not in result:
-                access_token = result["access_token"]
-                refresh_token = result.get("refresh_token", refresh_token)
-                new_exp = time.time() + result.get("expires_in", 3600)
-                expiry = datetime.fromtimestamp(new_exp, tz=timezone.utc)
+        stored_scopes = row.get("scopes", MICROSOFT_SCOPES)
+        scopes = [s for s in stored_scopes if s.lower() not in _RESERVED_SCOPES]
 
-                self._get_client().table("integrations").update(
-                    {
-                        "encrypted_access_token": encrypt_token(access_token),
-                        "encrypted_refresh_token": encrypt_token(refresh_token),
-                        "token_expiry": expiry.isoformat(),
-                        "updated_at": datetime.now(timezone.utc).isoformat(),
-                    }
-                ).eq("user_id", user_id).eq("provider", "microsoft").execute()
-
-        # Build O365-compatible token dict
-        token = {
-            "token_type": "Bearer",
-            "access_token": access_token,
-            "refresh_token": refresh_token,
-            "expires_at": expiry.timestamp(),
-        }
-
-        class _StaticTokenBackend(BaseTokenBackend):
-            """Token backend holding a pre-loaded token."""
-
-            def __init__(self, token_data: dict) -> None:
-                super().__init__()
-                self.token = token_data
-
-            def load_token(self) -> bool:
-                return bool(self.token)
-
-            def save_token(self) -> bool:
-                return True  # We manage refresh ourselves
-
-            def check_token(self) -> bool:
-                return bool(self.token and self.token.get("access_token"))
-
-            def delete_token(self) -> bool:
-                self.token = {}
-                return True
-
-        backend = _StaticTokenBackend(token)
-        credentials = (settings.microsoft_client_id, settings.microsoft_client_secret)
-
-        return O365Account(
-            credentials,
-            token_backend=backend,
-            tenant_id=settings.microsoft_tenant_id,
+        result = self._get_msal_app().acquire_token_by_refresh_token(
+            refresh_token, scopes=scopes
         )
+        if "error" in result:
+            msg = result.get("error_description", result["error"])
+            raise ValueError(f"Token refresh failed: {msg}")
+
+        access_token = result["access_token"]
+        new_refresh = result.get("refresh_token", refresh_token)
+        new_exp = now + result.get("expires_in", 3600)
+        expiry = datetime.fromtimestamp(new_exp, tz=timezone.utc)
+
+        await integ_repo.update_tokens(
+            user_id=user_id,
+            provider="microsoft",
+            encrypted_access_token=encrypt_token(access_token),
+            encrypted_refresh_token=encrypt_token(new_refresh),
+            token_expiry=expiry.isoformat(),
+        )
+
+        account = self._build_account(access_token)
+        cache_until = now + max(30, (new_exp - now) - _REFRESH_BUFFER_SECONDS)
+        _ACCOUNT_CACHE[user_id] = (cache_until, account)
+        return account
 
     async def revoke_tokens(self, user_id: str) -> None:
         """Delete Microsoft tokens from database."""
-        self._get_client().table("integrations").delete().eq("user_id", user_id).eq(
-            "provider", "microsoft"
-        ).execute()
+        _ACCOUNT_CACHE.pop(user_id, None)
+        await integ_repo.delete(user_id, "microsoft")
 
     async def is_connected(self, user_id: str) -> bool:
         """Check if user has a Microsoft integration."""
-        result = (
-            self._get_client()
-            .table("integrations")
-            .select("id")
-            .eq("user_id", user_id)
-            .eq("provider", "microsoft")
-            .maybe_single()
-            .execute()
-        )
-        return result.data is not None
+        return await integ_repo.exists(user_id, "microsoft")
 
 
 token_manager = TokenManager()

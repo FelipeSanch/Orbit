@@ -1,9 +1,31 @@
 import json
 from datetime import datetime, timezone
+from zoneinfo import ZoneInfo
 
 from agno.tools.decorator import tool
 
 from services.token_manager import TokenManager
+
+# O365 rejects datetimes whose tzinfo is a plain UTC offset — it wants a
+# real IANA zone (ZoneInfo). Default to America/New_York since the user
+# base is US-East; fall back to UTC if the zone isn't available.
+try:
+    _DEFAULT_ZONE = ZoneInfo("America/New_York")
+except Exception:
+    _DEFAULT_ZONE = ZoneInfo("UTC")
+
+
+def _parse_event_datetime(iso_str: str) -> datetime:
+    """Parse an ISO datetime and guarantee a ZoneInfo tzinfo (O365 requires it)."""
+    dt = datetime.fromisoformat(iso_str)
+    if dt.tzinfo is None:
+        return dt.replace(tzinfo=_DEFAULT_ZONE)
+    # Preserve the instant but re-anchor to a ZoneInfo. If the offset matches
+    # our default zone's current offset, keep it; otherwise fall back to UTC.
+    default_offset = datetime.now(_DEFAULT_ZONE).utcoffset()
+    if dt.utcoffset() == default_offset:
+        return dt.astimezone(_DEFAULT_ZONE)
+    return dt.astimezone(ZoneInfo("UTC"))
 
 
 def create_calendar_tools(token_manager: TokenManager, user_id: str) -> list:
@@ -33,7 +55,7 @@ def create_calendar_tools(token_manager: TokenManager, user_id: str) -> list:
             end = now.replace(hour=23, minute=59, second=59)
 
         query = calendar.new_query("start").greater_equal(start)
-        query.chain("and").on_attribute("end").less_equal(end)
+        query.chain("and").on_attribute("start").less_equal(end)
 
         events_iter = calendar.get_events(query=query, limit=max_results, include_recurring=True)
 
@@ -130,8 +152,8 @@ def create_calendar_tools(token_manager: TokenManager, user_id: str) -> list:
         event = calendar.new_event()
 
         event.subject = summary
-        event.start = datetime.fromisoformat(start_time)
-        event.end = datetime.fromisoformat(end_time)
+        event.start = _parse_event_datetime(start_time)
+        event.end = _parse_event_datetime(end_time)
 
         if description:
             event.body = description

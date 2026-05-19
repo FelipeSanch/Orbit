@@ -2,7 +2,8 @@ from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 
 from api.deps import get_current_user
-from services.supabase import get_supabase_client
+from repositories import conversations as conv_repo
+from repositories import messages as msg_repo
 
 router = APIRouter(prefix="/api/conversations", tags=["conversations"])
 
@@ -14,43 +15,18 @@ class UpdateConversationRequest(BaseModel):
 @router.get("")
 async def list_conversations(user: dict = Depends(get_current_user)) -> list:
     """List all conversations for the current user, newest first."""
-    result = (
-        get_supabase_client()
-        .table("conversations")
-        .select("*")
-        .eq("user_id", user["id"])
-        .order("updated_at", desc=True)
-        .execute()
-    )
-    return result.data
+    return await conv_repo.list_for_user(user["id"])
 
 
 @router.get("/{conversation_id}")
 async def get_conversation(conversation_id: str, user: dict = Depends(get_current_user)) -> dict:
     """Get a conversation with its messages."""
-    supabase = get_supabase_client()
-
-    conversation = (
-        supabase.table("conversations")
-        .select("*")
-        .eq("id", conversation_id)
-        .eq("user_id", user["id"])
-        .maybe_single()
-        .execute()
-    )
-
-    if not conversation.data:
+    conversation = await conv_repo.get(conversation_id, user["id"])
+    if not conversation:
         raise HTTPException(status_code=404, detail="Conversation not found")
 
-    messages = (
-        supabase.table("messages")
-        .select("*")
-        .eq("conversation_id", conversation_id)
-        .order("created_at", desc=False)
-        .execute()
-    )
-
-    return {**conversation.data, "messages": messages.data}
+    messages = await msg_repo.list_by_conversation(conversation_id)
+    return {**conversation, "messages": messages}
 
 
 @router.patch("/{conversation_id}")
@@ -60,26 +36,14 @@ async def update_conversation(
     user: dict = Depends(get_current_user),
 ) -> dict:
     """Update a conversation title."""
-    result = (
-        get_supabase_client()
-        .table("conversations")
-        .update({"title": request.title})
-        .eq("id", conversation_id)
-        .eq("user_id", user["id"])
-        .execute()
-    )
-
-    if not result.data:
+    result = await conv_repo.update_title(conversation_id, request.title)
+    if not result:
         raise HTTPException(status_code=404, detail="Conversation not found")
-
-    return result.data[0]
+    return result
 
 
 @router.delete("/{conversation_id}")
 async def delete_conversation(conversation_id: str, user: dict = Depends(get_current_user)) -> dict:
     """Delete a conversation and its messages."""
-    get_supabase_client().table("conversations").delete().eq("id", conversation_id).eq(
-        "user_id", user["id"]
-    ).execute()
-
+    await conv_repo.delete(conversation_id, user["id"])
     return {"status": "deleted"}

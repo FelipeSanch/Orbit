@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback } from "react";
+import { useCallback, useState } from "react";
 import { ChatInput } from "./chat-input";
 import { MessageList } from "./message-list";
 import { ApprovalCard } from "@/components/approval/approval-card";
@@ -18,7 +18,6 @@ export function ChatPanel() {
     streamingContent,
     isStreaming,
     currentConversationId,
-    currentSessionId,
     pendingApprovals,
     addMessage,
     appendDelta,
@@ -30,6 +29,7 @@ export function ChatPanel() {
   } = useChatStore();
 
   const addActivity = useActivityStore((s) => s.addActivity);
+  const [inputValue, setInputValue] = useState("");
 
   const handleEvent = useCallback(
     (event: { type: SSEEventType; data: Record<string, unknown> }) => {
@@ -92,9 +92,35 @@ export function ChatPanel() {
           });
           break;
 
-        case "error":
-          finishStream(`Error: ${event.data.message}`);
+        case "stream_end":
+          // Safety net: if stream ends without content_done (e.g. rejected
+          // action with no continuation text), still clear the streaming
+          // indicator so the UI doesn't hang.
+          useChatStore.getState().isStreaming &&
+            useChatStore.setState({ isStreaming: false, streamingContent: "" });
           break;
+
+        case "error": {
+          const raw = String(event.data.message ?? "");
+          let friendly: string;
+          if (/Failed to fetch|NetworkError|ECONNREFUSED/i.test(raw)) {
+            friendly =
+              "Couldn't reach the server. Check that the backend is running and try again.";
+          } else if (/rate limit|429/i.test(raw)) {
+            friendly =
+              "Slow down — too many requests right now. Try again in a moment.";
+          } else if (/Microsoft account not connected/i.test(raw)) {
+            friendly =
+              "Microsoft isn't connected yet. Open Settings and connect your account to use email, calendar, or tasks.";
+          } else if (/Paused run not found|no_run|no_session/i.test(raw)) {
+            friendly =
+              "That approval request expired. Send your message again to retry.";
+          } else {
+            friendly = raw || "Something went wrong. Please try again.";
+          }
+          finishStream(friendly);
+          break;
+        }
       }
     },
     [addActivity, addApproval, appendDelta, finishStream, setConversationId],
@@ -103,7 +129,7 @@ export function ChatPanel() {
   const { connect } = useSSE(handleEvent);
 
   const handleSend = (content: string) => {
-    if (!session?.access_token) return;
+    if (!session?.token) return;
 
     addMessage({
       id: crypto.randomUUID(),
@@ -112,41 +138,40 @@ export function ChatPanel() {
       createdAt: new Date().toISOString(),
     });
 
-    startStreaming();
+    const controller = new AbortController();
+    startStreaming(controller);
 
     const stream = sendChatMessage(
       content,
       currentConversationId,
-      currentSessionId,
-      session.access_token,
+      session.token,
+      controller.signal,
     );
 
     connect(stream);
   };
 
-  const handleApprove = async (approvalId: string) => {
-    if (!session?.access_token) return;
-    await approveAction(approvalId, true, session.access_token);
-    resolveApproval(approvalId, "approved");
-    addActivity({
-      id: crypto.randomUUID(),
-      type: "approval_approved",
-      data: { approval_id: approvalId },
-      timestamp: new Date().toISOString(),
-    });
+  const handleSuggestionClick = (text: string) => {
+    handleSend(text);
   };
 
-  const handleReject = async (approvalId: string) => {
-    if (!session?.access_token) return;
-    await approveAction(approvalId, false, session.access_token);
-    resolveApproval(approvalId, "rejected");
+  const resolveAndContinue = (approvalId: string, approved: boolean) => {
+    if (!session?.token) return;
+    resolveApproval(approvalId, approved ? "approved" : "rejected");
     addActivity({
       id: crypto.randomUUID(),
-      type: "approval_rejected",
+      type: approved ? "approval_approved" : "approval_rejected",
       data: { approval_id: approvalId },
       timestamp: new Date().toISOString(),
     });
+    const controller = new AbortController();
+    startStreaming(controller);
+    const stream = approveAction(approvalId, approved, session.token);
+    connect(stream);
   };
+
+  const handleApprove = (approvalId: string) => resolveAndContinue(approvalId, true);
+  const handleReject = (approvalId: string) => resolveAndContinue(approvalId, false);
 
   return (
     <div className="flex h-full flex-col">
@@ -154,10 +179,11 @@ export function ChatPanel() {
         messages={messages}
         streamingContent={streamingContent}
         isStreaming={isStreaming}
+        onSuggestionClick={handleSuggestionClick}
       />
 
       {pendingApprovals.filter((a) => a.status === "pending").length > 0 && (
-        <div className="flex flex-col gap-2 border-t border-zinc-200 p-4 dark:border-zinc-700">
+        <div className="mx-auto flex w-full max-w-3xl flex-col gap-2 border-t border-border px-4 py-3 sm:px-6">
           {pendingApprovals
             .filter((a) => a.status === "pending")
             .map((approval) => (
@@ -171,7 +197,12 @@ export function ChatPanel() {
         </div>
       )}
 
-      <ChatInput onSend={handleSend} disabled={isStreaming} />
+      <ChatInput
+        onSend={handleSend}
+        disabled={isStreaming}
+        value={inputValue}
+        onChange={setInputValue}
+      />
     </div>
   );
 }

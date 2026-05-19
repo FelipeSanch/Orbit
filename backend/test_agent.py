@@ -18,7 +18,7 @@ from services.agent_factory import create_team_for_user  # noqa: E402
 
 
 async def main() -> None:
-    # Replace with a real user_id from your Supabase auth.users table
+    # Replace with a real user_id from the public.users table
     user_id = "test-user-id"
     session_id = "test-session"
 

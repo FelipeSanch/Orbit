@@ -6,13 +6,13 @@ interface SpinnerProps {
 export function Spinner({ size = "md", className = "" }: SpinnerProps) {
   const sizes = {
     sm: "h-4 w-4",
-    md: "h-6 w-6",
+    md: "h-5 w-5",
     lg: "h-8 w-8",
   };
 
   return (
     <div
-      className={`animate-spin rounded-full border-2 border-zinc-200 border-t-foreground ${sizes[size]} ${className}`}
+      className={`animate-spin rounded-full border-2 border-border border-t-accent ${sizes[size]} ${className}`}
       role="status"
     >
       <span className="sr-only">Loading...</span>

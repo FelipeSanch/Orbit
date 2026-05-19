@@ -33,8 +33,8 @@ Orbit is a personal AI assistant that connects Outlook Mail, Calendar, and Micro
 │  └──────────────────────────────────────────┘            │
 │                                                          │
 │  ┌─────────────┐  ┌────────────┐  ┌───────────────┐     │
-│  │  Supabase   │  │   Redis    │  │ Token Manager │     │
-│  │  (Postgres) │  │  (Upstash) │  │  (Encryption) │     │
+│  │    Neon     │  │   Redis    │  │ Token Manager │     │
+│  │ (asyncpg)  │  │  (Upstash) │  │  (Encryption) │     │
 │  └─────────────┘  └────────────┘  └───────────────┘     │
 └──────────────────────────────────────────────────────────┘
 ```
@@ -43,7 +43,7 @@ Orbit is a personal AI assistant that connects Outlook Mail, Calendar, and Micro
 
 1. User sends message via chat UI
 2. Frontend POSTs to `/api/chat`, receives SSE stream
-3. Backend creates/loads conversation, stores user message
+3. Backend creates/loads conversation, stores user message via repository layer
 4. Agno Team routes message to the appropriate specialist agent
 5. Agent calls Microsoft Graph API tools via O365, streams content back
 6. Event translator converts Agno events to our SSE protocol
@@ -65,3 +65,12 @@ Standard `EventSource` only supports GET. We use `fetch()` with `ReadableStream`
 
 ### Factory/Closure Pattern for Tools
 Microsoft credentials are injected into `@tool` functions via closures created by factory functions (e.g., `create_email_tools(token_manager, user_id)`). This keeps tools stateless while binding user-specific credentials.
+
+### Neon + asyncpg + Drizzle (no Supabase, no RLS)
+- **Drizzle ORM** (TypeScript) is the single source of truth for schema. `drizzle-kit push` applies changes.
+- **asyncpg** (Python) uses raw SQL via a repository pattern for all backend DB access.
+- **No RLS** — every query includes `WHERE user_id = $1` at the application level.
+- **Better Auth** handles authentication. Sessions are validated by looking up the token in the `sessions` table.
+
+### Repository Pattern
+All database queries live in `backend/repositories/` (one file per domain). Routes and services import repositories instead of touching the DB directly. This keeps SQL in one place and makes it easy to test.

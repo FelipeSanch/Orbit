@@ -4,7 +4,12 @@ interface CardProps extends HTMLAttributes<HTMLDivElement> {
   padding?: "sm" | "md" | "lg";
 }
 
-export function Card({ className = "", padding = "md", children, ...props }: CardProps) {
+export function Card({
+  className = "",
+  padding = "md",
+  children,
+  ...props
+}: CardProps) {
   const paddings = {
     sm: "p-3",
     md: "p-4",
@@ -13,7 +18,7 @@ export function Card({ className = "", padding = "md", children, ...props }: Car
 
   return (
     <div
-      className={`rounded-lg border border-zinc-200 bg-white dark:border-zinc-700 dark:bg-zinc-800 ${paddings[padding]} ${className}`}
+      className={`rounded-xl border border-border bg-surface shadow-sm ${paddings[padding]} ${className}`}
       {...props}
     >
       {children}

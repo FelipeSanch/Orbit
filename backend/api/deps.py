@@ -1,25 +1,28 @@
 from fastapi import Header, HTTPException
 
-from services.supabase import get_supabase_client
+from services.database import get_pool
 
 
 async def get_current_user(authorization: str = Header(...)) -> dict:
-    """Extract and validate Supabase JWT. Returns user dict with id and email."""
+    """Validate a Better Auth session token. Returns user dict with id and email."""
     if not authorization.startswith("Bearer "):
         raise HTTPException(status_code=401, detail="Invalid authorization header")
 
     token = authorization.removeprefix("Bearer ")
+    pool = get_pool()
 
-    try:
-        client = get_supabase_client()
-        user_response = client.auth.get_user(token)
-        user = user_response.user
+    async with pool.acquire() as conn:
+        row = await conn.fetchrow(
+            """
+            SELECT u.id, u.email
+            FROM sessions s
+            JOIN users u ON u.id = s.user_id
+            WHERE s.token = $1 AND s.expires_at > NOW()
+            """,
+            token,
+        )
 
-        if not user:
-            raise HTTPException(status_code=401, detail="Invalid token")
+    if not row:
+        raise HTTPException(status_code=401, detail="Invalid or expired session")
 
-        return {"id": user.id, "email": user.email}
-    except HTTPException:
-        raise
-    except Exception:
-        raise HTTPException(status_code=401, detail="Authentication failed")
+    return {"id": str(row["id"]), "email": row["email"]}

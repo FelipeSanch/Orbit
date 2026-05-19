@@ -12,7 +12,9 @@ type EventHandler = (event: SSEEvent) => void;
 
 function parseSSEEvents(chunk: string): SSEEvent[] {
   const events: SSEEvent[] = [];
-  const blocks = chunk.split("\n\n").filter(Boolean);
+  // Normalize CRLF to LF so we can split on \n\n regardless of server line endings
+  const normalized = chunk.replace(/\r\n/g, "\n");
+  const blocks = normalized.split("\n\n").filter(Boolean);
 
   for (const block of blocks) {
     const lines = block.split("\n");
@@ -20,10 +22,10 @@ function parseSSEEvents(chunk: string): SSEEvent[] {
     let data = "";
 
     for (const line of lines) {
-      if (line.startsWith("event: ")) {
-        eventType = line.slice(7).trim() as SSEEventType;
-      } else if (line.startsWith("data: ")) {
-        data = line.slice(6);
+      if (line.startsWith("event:")) {
+        eventType = line.slice(6).trim() as SSEEventType;
+      } else if (line.startsWith("data:")) {
+        data = line.slice(5).trim();
       }
     }
 
@@ -59,6 +61,8 @@ export function useSSE(onEvent: EventHandler) {
           buffer += decoder.decode(value, { stream: true });
 
           // Process complete events (separated by double newline)
+          // Normalize CRLF to LF in buffer for consistent splitting
+          buffer = buffer.replace(/\r\n/g, "\n");
           const lastDoubleNewline = buffer.lastIndexOf("\n\n");
           if (lastDoubleNewline !== -1) {
             const complete = buffer.slice(0, lastDoubleNewline + 2);
