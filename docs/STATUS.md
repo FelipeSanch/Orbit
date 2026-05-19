@@ -1,8 +1,13 @@
 # Orbit — Project Status
 
-Last updated: 2026-04-21 (Phase 2 + Phase 3 kickoff)
+Last updated: 2026-05-19 (post v2 platform landing)
 
 > Big architectural changes are tracked separately in `docs/ARCHITECTURE_CHANGES.md`.
+
+**Where we are right now**: Phase 1–3 substantially complete. Phase 4 (SMS over
+Twilio) is code-complete and gated on Twilio toll-free verification. Phase 5
+landed early with Google Calendar as a parallel-to-Outlook integration. Web
+dashboard is hosting-ready.
 
 ## What's Built and Working
 
