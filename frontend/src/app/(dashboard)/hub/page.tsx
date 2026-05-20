@@ -239,11 +239,24 @@ export default function HubPage() {
       scopes: def.scopes,
       onConnect: async () => {
         if (!session?.token) return;
-        const url =
+        const result =
           def.id === "microsoft"
             ? await getMicrosoftAuthUrl(session.token)
             : await getGoogleAuthUrl(session.token);
-        if (url) window.location.href = url;
+        if (result.ok) {
+          window.location.href = result.url;
+          return;
+        }
+        // Surface the failure inline so Connect isn't a silent no-op.
+        const message =
+          result.reason === "unauthorized"
+            ? "Your session expired. Please sign in again."
+            : result.reason === "network"
+              ? "Couldn't reach Orbit's backend. Check your connection and retry."
+              : result.reason === "malformed"
+                ? "Got an unexpected response from the server. Try again."
+                : `Couldn't start connection (HTTP ${result.status ?? "error"}). Try again.`;
+        setModal((prev) => (prev ? { ...prev, error: message } : prev));
       },
       onDisconnect: async () => {
         if (!session?.token) return;

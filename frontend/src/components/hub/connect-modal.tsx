@@ -13,6 +13,12 @@ export interface ConnectModalState {
   onConnect?: () => void;
   onDisconnect?: () => Promise<void> | void;
   isPending?: boolean;
+  /**
+   * If set, rendered below the action buttons. Lets the caller surface an
+   * OAuth-init failure (network, 401, malformed response) inline instead
+   * of the Connect button silently no-op'ing.
+   */
+  error?: string;
 }
 
 interface ConnectModalProps {
@@ -143,6 +149,15 @@ export function ConnectModal({ state, onClose }: ConnectModalProps) {
             Close
           </Button>
         </div>
+
+        {state.error && (
+          <p
+            role="alert"
+            className="mt-3 rounded-md border border-red-500/20 bg-red-500/5 px-3 py-2 text-[12px] text-red-600 dark:text-red-400"
+          >
+            {state.error}
+          </p>
+        )}
       </div>
     </div>
   );

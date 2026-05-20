@@ -132,25 +132,37 @@ export async function deleteMemory(
   return response?.ok ?? false;
 }
 
-export async function getMicrosoftAuthUrl(token: string): Promise<string | null> {
-  // OAuth start now returns the Microsoft authorize URL as JSON instead of
-  // a redirect. Token travels in the Authorization header — never as a
-  // ?authorization= query param, which would leak to proxies and history.
-  const response = await safeFetch(`${env.apiUrl}/api/auth/microsoft`, {
+export type AuthUrlResult =
+  | { ok: true; url: string }
+  | { ok: false; reason: "network" | "unauthorized" | "server" | "malformed"; status?: number };
+
+async function fetchAuthUrl(path: string, token: string): Promise<AuthUrlResult> {
+  // OAuth start returns the authorize URL as JSON. Token travels in the
+  // Authorization header — never as a ?authorization= query param, which
+  // would leak to proxy logs and browser history.
+  // Returns a tagged result so the caller can surface the failure mode
+  // instead of silently no-op'ing the Connect button.
+  const response = await safeFetch(`${env.apiUrl}${path}`, {
     headers: { Authorization: `Bearer ${token}` },
   });
-  if (!response || !response.ok) return null;
-  const data = await response.json();
-  return typeof data?.url === "string" ? data.url : null;
+  if (!response) return { ok: false, reason: "network" };
+  if (response.status === 401) return { ok: false, reason: "unauthorized", status: 401 };
+  if (!response.ok) return { ok: false, reason: "server", status: response.status };
+  try {
+    const data = await response.json();
+    if (typeof data?.url === "string") return { ok: true, url: data.url };
+    return { ok: false, reason: "malformed" };
+  } catch {
+    return { ok: false, reason: "malformed" };
+  }
 }
 
-export async function getGoogleAuthUrl(token: string): Promise<string | null> {
-  const response = await safeFetch(`${env.apiUrl}/api/auth/google`, {
-    headers: { Authorization: `Bearer ${token}` },
-  });
-  if (!response || !response.ok) return null;
-  const data = await response.json();
-  return typeof data?.url === "string" ? data.url : null;
+export function getMicrosoftAuthUrl(token: string): Promise<AuthUrlResult> {
+  return fetchAuthUrl("/api/auth/microsoft", token);
+}
+
+export function getGoogleAuthUrl(token: string): Promise<AuthUrlResult> {
+  return fetchAuthUrl("/api/auth/google", token);
 }
 
 export async function fetchUsageToday(token: string): Promise<{

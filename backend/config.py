@@ -64,25 +64,39 @@ class Settings(BaseSettings):
 
         missing: list[str] = []
         if not self.database_url or "localhost" in self.database_url:
-            missing.append("DATABASE_URL (production Neon URL)")
+            missing.append(
+                "DATABASE_URL (e.g. postgresql://user:pass@ep-xxx.neon.tech/neondb?sslmode=require)"
+            )
         if not self.frontend_url or "localhost" in self.frontend_url:
-            missing.append("FRONTEND_URL (production frontend URL)")
+            missing.append("FRONTEND_URL (e.g. https://orbit.vercel.app)")
         if not self.upstash_redis_url or not self.upstash_redis_token:
-            missing.append("UPSTASH_REDIS_URL + UPSTASH_REDIS_TOKEN")
+            missing.append(
+                "UPSTASH_REDIS_URL + UPSTASH_REDIS_TOKEN "
+                "(e.g. https://xxxxx.upstash.io / AX...)"
+            )
         if not self.encryption_key:
-            missing.append("ENCRYPTION_KEY")
+            missing.append(
+                'ENCRYPTION_KEY (generate: python -c "from cryptography.fernet '
+                "import Fernet; print(Fernet.generate_key().decode())\")"
+            )
         if not self.better_auth_secret:
-            missing.append("BETTER_AUTH_SECRET")
+            missing.append("BETTER_AUTH_SECRET (generate: openssl rand -base64 32)")
         if not self.anthropic_api_key:
-            missing.append("ANTHROPIC_API_KEY")
+            missing.append("ANTHROPIC_API_KEY (sk-ant-...)")
         if "localhost" in self.microsoft_redirect_uri:
-            missing.append("MICROSOFT_REDIRECT_URI (must be production backend)")
+            missing.append(
+                f"MICROSOFT_REDIRECT_URI (currently {self.microsoft_redirect_uri!r}; "
+                "expected e.g. https://your-backend.up.railway.app/api/auth/microsoft/callback)"
+            )
         if "localhost" in self.google_redirect_uri:
-            missing.append("GOOGLE_REDIRECT_URI (must be production backend)")
+            missing.append(
+                f"GOOGLE_REDIRECT_URI (currently {self.google_redirect_uri!r}; "
+                "expected e.g. https://your-backend.up.railway.app/api/auth/google/callback)"
+            )
 
         if missing:
             raise ValueError(
-                "Production environment requires: " + "; ".join(missing)
+                "Production environment requires:\n  - " + "\n  - ".join(missing)
             )
         return self
 
