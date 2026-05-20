@@ -126,21 +126,24 @@ The O365 library provides Pythonic access to Microsoft Graph. After token refres
 
    `ENCRYPTION_KEYS` (CSV, primary first) overrides `ENCRYPTION_KEY` (single). Restart the backend so it loads the new chain. From this point, all new writes use `<new>`; reads of old rows still succeed via the fallback.
 
-3. **Re-encrypt every row onto the new primary.**
+3. **Re-encrypt every row onto the new primary.** The script defaults to dry-run; you need `--execute` to actually write, plus a typed confirmation of the DB host (or `--yes` to skip the prompt in CI).
 
    ```bash
    cd backend
-   python -m scripts.rotate_fernet_key --dry-run        # validate first
-   python -m scripts.rotate_fernet_key                  # do it
+   python -m scripts.rotate_fernet_key                        # dry-run (default)
+   python -m scripts.rotate_fernet_key --execute              # interactive prompt
+   python -m scripts.rotate_fernet_key --execute --yes        # CI/scripted
    ```
 
-   The script walks the `integrations` table, decrypts each token through the chain, and rewrites it encrypted with the new primary. Idempotent — re-running on an already-rotated row is harmless.
+   The execute step walks the `integrations` table, decrypts each token through the chain, and rewrites it encrypted with the new primary. Idempotent — re-running on an already-rotated row is harmless.
 
-   For a scoped run (e.g. validating against one user before a full sweep):
+   For a scoped run (validate against one user before a full sweep, or skip a known-broken fixture row):
 
    ```bash
    python -m scripts.rotate_fernet_key --user-id <uuid>
    ```
+
+   The script aborts before any writes if any row fails to decrypt — fix or scope past the offending rows before retrying.
 
 4. **Drop the old key once `failed=0`.** Edit `.env` again:
 
