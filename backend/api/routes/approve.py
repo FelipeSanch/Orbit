@@ -1,5 +1,6 @@
 import json
 import logging
+from collections.abc import AsyncGenerator
 
 from fastapi import APIRouter, Depends, Header, HTTPException
 from pydantic import BaseModel
@@ -74,24 +75,121 @@ _SUCCESS_TEXTS = {
 
 async def _run_tool_directly(
     user_id: str, tool_name: str, tool_args: dict
-) -> tuple[bool, str]:
-    """Invoke the approved tool directly. Returns (ok, message_for_user)."""
+) -> tuple[bool, str, str]:
+    """Invoke the approved tool directly.
+
+    Returns (ok, tool_result_payload, user_facing_message). The raw tool
+    payload (a JSON string from the tool, or an error string) feeds the
+    `tool_result` SSE event so the activity feed sees the real outcome;
+    the user-facing message is what the assistant says in chat.
+    """
     tool_map = await _build_tool_map(user_id)
     tool = tool_map.get(tool_name)
     if tool is None:
-        return False, f"I don't know how to run {tool_name} directly."
+        msg = f"I don't know how to run {tool_name} directly."
+        return False, msg, msg
 
     try:
         # Agno @tool objects expose `entrypoint` as the underlying async fn
         fn = getattr(tool, "entrypoint", None) or tool
         result = await fn(**tool_args)
-        logger.info("Direct tool %s succeeded: %s", tool_name, str(result)[:200])
-        return True, _SUCCESS_TEXTS.get(
+        result_str = str(result) if result is not None else ""
+        logger.info("Direct tool %s succeeded: %s", tool_name, result_str[:200])
+        user_msg = _SUCCESS_TEXTS.get(
             tool_name, f"Done. {tool_name.replace('_', ' ').capitalize()} completed."
         )
+        return True, result_str, user_msg
     except Exception as e:
         logger.exception("Direct tool %s failed: %s", tool_name, e)
-        return False, f"Couldn't complete {tool_name.replace('_', ' ')}: {e}"
+        err = f"Couldn't complete {tool_name.replace('_', ' ')}: {e}"
+        return False, f"Error: {e}", err
+
+
+def _sse_event(event_type: str, data: dict) -> ServerSentEvent:
+    return ServerSentEvent(data=json.dumps(data), event=event_type)
+
+
+async def _emit_direct_fallback(
+    *,
+    user_id: str,
+    conversation_id: str,
+    run_id: str,
+    session_id: str,
+    tool_name: str,
+    tool_args: dict,
+    tool_call_id: str,
+    reason: str,
+) -> AsyncGenerator[ServerSentEvent, None]:
+    """Run the approved tool ourselves and emit the SSE shape the UI expects.
+
+    Mirrors translate_team_stream's wire format (tool_call → tool_result →
+    content_delta → content_done → stream_end) so the activity feed and
+    chat stay consistent when Agno's resume path drops the run.
+
+    `reason` is logged but not surfaced to the user — they just see the
+    action complete normally.
+    """
+    logger.info(
+        "Direct-tool fallback: tool=%s call_id=%s reason=%s",
+        tool_name,
+        tool_call_id,
+        reason,
+    )
+
+    await activity_repo.create(
+        user_id=user_id,
+        conversation_id=conversation_id,
+        event_type="tool_call",
+        event_data={
+            "tool_name": tool_name,
+            "tool_args": tool_args,
+            "run_id": run_id,
+            "fallback": True,
+            "fallback_reason": reason,
+        },
+    )
+
+    yield _sse_event(
+        "tool_call",
+        {
+            "tool_name": tool_name,
+            "tool_args": tool_args,
+            "tool_call_id": tool_call_id,
+        },
+    )
+
+    ok, raw_result, user_message = await _run_tool_directly(
+        user_id, tool_name, tool_args
+    )
+
+    yield _sse_event(
+        "tool_result",
+        {
+            "tool_name": tool_name,
+            "tool_call_id": tool_call_id,
+            "result": raw_result[:1000],
+        },
+    )
+
+    yield _sse_event("content_delta", {"delta": user_message})
+    yield _sse_event("content_done", {"full_content": user_message})
+
+    await msg_repo.create(
+        conversation_id,
+        user_id,
+        "assistant",
+        user_message,
+        {
+            "run_id": run_id,
+            "session_id": session_id,
+            "fallback": True,
+            "fallback_reason": reason,
+            "tool_executed": tool_name,
+            "tool_ok": ok,
+        },
+    )
+    await conv_repo.update_timestamp(conversation_id)
+    yield _sse_event("stream_end", {"run_id": run_id, "metrics": {}})
 
 
 @router.post("/approve")
@@ -211,28 +309,88 @@ async def approve_action(
                     stream_events=True,
                 )
 
+                # Buffer the continuation so we can detect a silent failure
+                # (Agno's route-mode resume sometimes restarts a fresh run
+                # that never executes the confirmed tool, while still
+                # producing a fake "done" response) and recover from hard
+                # exceptions raised inside Agno's continue path. In either
+                # case, if approved=True and we never observed a tool_call
+                # for the target tool, drop the buffered stream and run
+                # the direct-tool fallback so the user's action completes.
+                buffered: list[ServerSentEvent] = []
+                saw_target_tool = False
                 full_content = ""
                 run_metrics: dict = {}
-                async for sse_event in translate_team_stream(
-                    event_stream,
-                    user["id"],
-                    conversation_id,
-                    session_id,
-                    revalidate_session=revalidate,
-                ):
-                    if sse_event.event == "content_done" and sse_event.data:
-                        try:
-                            parsed = json.loads(sse_event.data)
-                            full_content = parsed.get("full_content", "")
-                        except (json.JSONDecodeError, TypeError):
-                            pass
-                    elif sse_event.event == "stream_end" and sse_event.data:
-                        try:
-                            parsed = json.loads(sse_event.data)
-                            run_metrics = parsed.get("metrics", {}) or {}
-                        except (json.JSONDecodeError, TypeError):
-                            pass
-                    yield sse_event
+                resume_exception: Exception | None = None
+
+                try:
+                    async for sse_event in translate_team_stream(
+                        event_stream,
+                        user["id"],
+                        conversation_id,
+                        session_id,
+                        revalidate_session=revalidate,
+                    ):
+                        if sse_event.event == "tool_call" and sse_event.data:
+                            try:
+                                parsed = json.loads(sse_event.data)
+                                if (
+                                    parsed.get("tool_call_id") == tool_call_id
+                                    or parsed.get("tool_name") == tool_name
+                                ):
+                                    saw_target_tool = True
+                            except (json.JSONDecodeError, TypeError):
+                                pass
+                        elif sse_event.event == "content_done" and sse_event.data:
+                            try:
+                                parsed = json.loads(sse_event.data)
+                                full_content = parsed.get("full_content", "")
+                            except (json.JSONDecodeError, TypeError):
+                                pass
+                        elif sse_event.event == "stream_end" and sse_event.data:
+                            try:
+                                parsed = json.loads(sse_event.data)
+                                run_metrics = parsed.get("metrics", {}) or {}
+                            except (json.JSONDecodeError, TypeError):
+                                pass
+                        buffered.append(sse_event)
+                except Exception as e:
+                    logger.warning(
+                        "Agno continuation raised %s: %s. Will fall back if "
+                        "the target tool was never reached.",
+                        type(e).__name__,
+                        e,
+                    )
+                    resume_exception = e
+
+                if request.approved and not saw_target_tool:
+                    reason = (
+                        "agno_resume_exception"
+                        if resume_exception is not None
+                        else "agno_silent_resume"
+                    )
+                    logger.warning(
+                        "Resume did not execute %s/%s (reason=%s). Dropping "
+                        "buffered stream and running direct-tool fallback.",
+                        tool_name,
+                        tool_call_id,
+                        reason,
+                    )
+                    async for ev in _emit_direct_fallback(
+                        user_id=user["id"],
+                        conversation_id=conversation_id,
+                        run_id=run_id,
+                        session_id=session_id,
+                        tool_name=tool_name,
+                        tool_args=tool_args,
+                        tool_call_id=tool_call_id,
+                        reason=reason,
+                    ):
+                        yield ev
+                    return
+
+                for ev in buffered:
+                    yield ev
 
                 if full_content:
                     await msg_repo.create(
@@ -250,7 +408,10 @@ async def approve_action(
                     await conv_repo.update_timestamp(conversation_id)
                 return
 
-            # ── Fallback: resume failed, execute the tool directly ─
+            # ── Fallback: paused run missing in Agno session ──────
+            # Common causes: process restart, session drift, or a stored
+            # run_id that Agno can no longer locate. Run the tool ourselves
+            # so the user's confirmed action still completes.
             logger.warning(
                 "Agno resume miss — session=%s run=%s agno_session=%s. "
                 "Falling back to direct tool execution.",
@@ -260,7 +421,6 @@ async def approve_action(
             )
 
             if not request.approved:
-                # Rejected with no resume path — just ack to the user.
                 summary = "Got it, not doing that."
                 yield _sse("content_delta", {"delta": summary})
                 yield _sse("content_done", {"full_content": summary})
@@ -274,27 +434,17 @@ async def approve_action(
                 yield _sse("stream_end", {"run_id": run_id, "metrics": {}})
                 return
 
-            ok, message = await _run_tool_directly(
-                user["id"], tool_name, tool_args
-            )
-
-            yield _sse("content_delta", {"delta": message})
-            yield _sse("content_done", {"full_content": message})
-            await msg_repo.create(
-                conversation_id,
-                user["id"],
-                "assistant",
-                message,
-                {
-                    "run_id": run_id,
-                    "session_id": session_id,
-                    "fallback": True,
-                    "tool_executed": tool_name,
-                    "tool_ok": ok,
-                },
-            )
-            await conv_repo.update_timestamp(conversation_id)
-            yield _sse("stream_end", {"run_id": run_id, "metrics": {}})
+            async for ev in _emit_direct_fallback(
+                user_id=user["id"],
+                conversation_id=conversation_id,
+                run_id=run_id,
+                session_id=session_id,
+                tool_name=tool_name,
+                tool_args=tool_args,
+                tool_call_id=tool_call_id,
+                reason="agno_session_miss",
+            ):
+                yield ev
         except Exception as e:
             logger.exception("Error continuing approved run: %s", e)
             yield _sse("error", {"message": str(e)})
