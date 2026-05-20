@@ -4,6 +4,7 @@ from zoneinfo import ZoneInfo
 
 from agno.tools.decorator import tool
 
+from services.graph_safety import ensure_ok
 from services.token_manager import TokenManager
 
 # O365 rejects datetimes whose tzinfo is a plain UTC offset — it wants a
@@ -163,7 +164,7 @@ def create_calendar_tools(token_manager: TokenManager, user_id: str) -> list:
             for email in attendees.split(","):
                 event.attendees.add(email.strip())
 
-        event.save()
+        ensure_ok(event.save(), action="the event-create request")
 
         return json.dumps(
             {
@@ -215,7 +216,7 @@ def create_calendar_tools(token_manager: TokenManager, user_id: str) -> list:
             for email in attendees.split(","):
                 event.attendees.add(email.strip())
 
-        event.save()
+        ensure_ok(event.save(), action="the event-update request")
 
         return json.dumps({"status": "updated", "id": event.object_id})
 
@@ -232,7 +233,7 @@ def create_calendar_tools(token_manager: TokenManager, user_id: str) -> list:
         if not event:
             return json.dumps({"error": "Event not found"})
 
-        event.delete()
+        ensure_ok(event.delete(), action="the event-delete request")
 
         return json.dumps({"status": "deleted", "id": event_id})
 

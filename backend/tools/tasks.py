@@ -3,6 +3,7 @@ from datetime import datetime
 
 from agno.tools.decorator import tool
 
+from services.graph_safety import ensure_ok
 from services.token_manager import TokenManager
 
 
@@ -133,7 +134,7 @@ def create_tasks_tools(token_manager: TokenManager, user_id: str) -> list:
         if due_date:
             task.due = datetime.fromisoformat(due_date)
 
-        task.save()
+        ensure_ok(task.save(), action="the task-create request")
 
         return json.dumps(
             {
@@ -178,7 +179,7 @@ def create_tasks_tools(token_manager: TokenManager, user_id: str) -> list:
         if due_date:
             task.due = datetime.fromisoformat(due_date)
 
-        task.save()
+        ensure_ok(task.save(), action="the task-update request")
 
         return json.dumps({"status": "updated", "id": task.object_id})
 
@@ -202,7 +203,7 @@ def create_tasks_tools(token_manager: TokenManager, user_id: str) -> list:
             return json.dumps({"error": "Task not found"})
 
         task.mark_completed()
-        task.save()
+        ensure_ok(task.save(), action="the task-complete request")
 
         return json.dumps(
             {
@@ -231,7 +232,7 @@ def create_tasks_tools(token_manager: TokenManager, user_id: str) -> list:
         if not task:
             return json.dumps({"error": "Task not found"})
 
-        task.delete()
+        ensure_ok(task.delete(), action="the task-delete request")
 
         return json.dumps({"status": "deleted", "id": task_id})
 

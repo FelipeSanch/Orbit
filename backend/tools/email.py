@@ -2,6 +2,7 @@ import json
 
 from agno.tools.decorator import tool
 
+from services.graph_safety import ensure_ok
 from services.token_manager import TokenManager
 
 
@@ -163,12 +164,7 @@ def create_email_tools(token_manager: TokenManager, user_id: str) -> list:
             for addr in bcc.split(","):
                 msg.bcc.add(addr.strip())
 
-        # O365 msg.send() returns True on success, False on a non-raising
-        # rejection by Graph (missing recipient, etc.). Surface False as
-        # an exception so the tool_result lands as an error envelope
-        # instead of a fake "sent" claim.
-        if not msg.send():
-            raise RuntimeError("Microsoft Graph rejected the send request.")
+        ensure_ok(msg.send(), action="the send request")
 
         return json.dumps({"status": "sent", "to": to, "subject": subject})
 
@@ -189,8 +185,7 @@ def create_email_tools(token_manager: TokenManager, user_id: str) -> list:
 
         reply = original.reply(to_all=reply_all)
         reply.body = body
-        if not reply.send():
-            raise RuntimeError("Microsoft Graph rejected the reply request.")
+        ensure_ok(reply.send(), action="the reply request")
 
         return json.dumps(
             {
@@ -213,7 +208,7 @@ def create_email_tools(token_manager: TokenManager, user_id: str) -> list:
         if not msg:
             return json.dumps({"error": "Message not found"})
 
-        msg.delete()
+        ensure_ok(msg.delete(), action="the delete request")
 
         return json.dumps({"status": "deleted", "id": email_id})
 
@@ -238,9 +233,10 @@ def create_email_tools(token_manager: TokenManager, user_id: str) -> list:
         }
         get_folder = folder_map.get(destination_folder.lower())
         if get_folder:
-            msg.move(get_folder())
+            moved = msg.move(get_folder())
         else:
-            msg.move(destination_folder)  # Try as folder ID or name
+            moved = msg.move(destination_folder)  # Try as folder ID or name
+        ensure_ok(moved, action="the move request")
 
         return json.dumps({"status": "moved", "id": email_id, "folder": destination_folder})
 

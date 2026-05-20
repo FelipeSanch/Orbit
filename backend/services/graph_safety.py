@@ -52,6 +52,23 @@ TOOL_PROGRESS_THRESHOLD_S: float = _env_float(
 _RETRY_AFTER_RE = re.compile(r"Retry-After['\":\s]+(\d+)", re.IGNORECASE)
 
 
+def ensure_ok(result: object, *, action: str) -> None:
+    """Raise if a python-o365 write returned a falsy success flag.
+
+    O365 methods like Message.send() / Event.save() / Task.delete() return
+    True/False instead of raising on a 4xx that the library treats as a
+    "logical" failure (missing recipient, permission soft-denied, etc.).
+    Treating a False return as success silently lies to the user — the
+    tool_result envelope says "done" while nothing actually happened.
+
+    Centralized so every write tool calls the same helper; pair with a
+    unit test asserting each tool raises when the underlying mock
+    returns False (see backend/tests/test_o365_boolean_returns.py).
+    """
+    if not result:
+        raise RuntimeError(f"Microsoft Graph rejected {action}.")
+
+
 def _looks_like_timeout(err: str) -> bool:
     return any(
         marker in err
