@@ -12,6 +12,7 @@ from services.agent_factory import create_team_for_user
 from services.database import get_pool
 from services.event_translator import translate_team_stream
 from services.redis import check_rate_limit
+from services.spend_cap import check_daily_spend
 
 logger = logging.getLogger(__name__)
 
@@ -33,6 +34,21 @@ async def chat(
     rate_result = check_rate_limit(user["id"])
     if not rate_result.allowed:
         raise HTTPException(status_code=429, detail="Rate limit exceeded")
+
+    spend = await check_daily_spend(user["id"])
+    if not spend.allowed:
+        raise HTTPException(
+            status_code=429,
+            detail={
+                "code": "daily_cap_reached",
+                "message": (
+                    f"Daily cap reached (${spend.current_usd:.2f} of "
+                    f"${spend.cap_usd:.2f}). Resets at 00:00 UTC."
+                ),
+                "current_usd": spend.current_usd,
+                "cap_usd": spend.cap_usd,
+            },
+        )
 
     # Capture the session token now so the SSE translator can re-validate
     # at tool-call boundaries. The stream can run for minutes; if the user
@@ -58,9 +74,7 @@ async def chat(
     # session history never saw them. Prepend a short note so the agent
     # doesn't try to repeat already-done actions.
     fallback_note = await msg_repo.fallback_context(conversation_id)
-    input_message = (
-        f"{fallback_note}\n\n{request.message}" if fallback_note else request.message
-    )
+    input_message = f"{fallback_note}\n\n{request.message}" if fallback_note else request.message
 
     async def event_generator():
         try:

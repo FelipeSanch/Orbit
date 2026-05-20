@@ -18,6 +18,8 @@ from api.routes.usage import router as usage_router
 from config import settings
 from services.database import close_pool, init_pool
 
+logger = logging.getLogger(__name__)
+
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s %(levelname)s %(name)s: %(message)s",
@@ -31,8 +33,36 @@ if settings.anthropic_api_key:
     os.environ["ANTHROPIC_API_KEY"] = settings.anthropic_api_key
 
 
+def _init_sentry() -> None:
+    """Initialize Sentry only when a DSN is configured.
+
+    Kept inline (not in services/) because Sentry has to install hooks
+    before app routes import — moving this behind another import layer
+    delays it. SDK is optional; we only fail if DSN is set but the
+    package isn't installed.
+    """
+    if not settings.sentry_dsn:
+        return
+    try:
+        import sentry_sdk
+        from sentry_sdk.integrations.fastapi import FastApiIntegration
+    except ImportError:
+        logger.warning("SENTRY_DSN is set but sentry-sdk is not installed. Skipping init.")
+        return
+    sentry_sdk.init(
+        dsn=settings.sentry_dsn,
+        environment=settings.environment,
+        integrations=[FastApiIntegration()],
+        # Errors are the priority; tracing is opt-in via env var if we ever want it.
+        traces_sample_rate=0.0,
+        # Don't ship request bodies — they can contain OAuth tokens / PII.
+        send_default_pii=False,
+    )
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
+    _init_sentry()
     await init_pool(settings.database_url)
     yield
     await close_pool()

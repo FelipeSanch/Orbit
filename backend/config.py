@@ -49,6 +49,13 @@ class Settings(BaseSettings):
     # using a tunneling tool that strips/modifies headers.
     twilio_webhook_validate: bool = True
 
+    # Per-user daily spend cap (USD). Checked at /api/chat entry; set to
+    # 0 to disable. Default is intentionally low for a portfolio project.
+    daily_spend_cap_usd: float = 1.0
+
+    # Sentry (optional). If set, initialized in main.py lifespan.
+    sentry_dsn: str = ""
+
     @property
     def is_production(self) -> bool:
         return self.environment.lower() == "production"
@@ -71,13 +78,12 @@ class Settings(BaseSettings):
             missing.append("FRONTEND_URL (e.g. https://orbit.vercel.app)")
         if not self.upstash_redis_url or not self.upstash_redis_token:
             missing.append(
-                "UPSTASH_REDIS_URL + UPSTASH_REDIS_TOKEN "
-                "(e.g. https://xxxxx.upstash.io / AX...)"
+                "UPSTASH_REDIS_URL + UPSTASH_REDIS_TOKEN (e.g. https://xxxxx.upstash.io / AX...)"
             )
         if not self.encryption_key:
             missing.append(
                 'ENCRYPTION_KEY (generate: python -c "from cryptography.fernet '
-                "import Fernet; print(Fernet.generate_key().decode())\")"
+                'import Fernet; print(Fernet.generate_key().decode())")'
             )
         if not self.better_auth_secret:
             missing.append("BETTER_AUTH_SECRET (generate: openssl rand -base64 32)")
@@ -95,9 +101,7 @@ class Settings(BaseSettings):
             )
 
         if missing:
-            raise ValueError(
-                "Production environment requires:\n  - " + "\n  - ".join(missing)
-            )
+            raise ValueError("Production environment requires:\n  - " + "\n  - ".join(missing))
         return self
 
 
