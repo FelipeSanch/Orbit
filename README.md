@@ -53,8 +53,8 @@ A few design choices worth a closer look:
   application layer. Drizzle defines the schema once; asyncpg reads it.
 
 For deeper notes: `docs/architecture.md`, `docs/agents.md`, `docs/schema.md`,
-`docs/streaming.md`, `docs/oauth.md`, and the full design spec at
-`docs/superpowers/specs/2026-04-26-bottom-up-refactor-design.md`.
+`docs/streaming.md`, `docs/oauth.md`, and the architectural change log at
+`docs/ARCHITECTURE_CHANGES.md`.
 
 ## Stack
 
