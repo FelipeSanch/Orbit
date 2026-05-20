@@ -35,8 +35,14 @@ class Settings(BaseSettings):
     google_client_secret: str = ""
     google_redirect_uri: str = "http://localhost:8000/api/auth/google/callback"
 
-    # Encryption
+    # Encryption. ENCRYPTION_KEY is the single-key path used by every install;
+    # during a rotation, set ENCRYPTION_KEYS to a comma-separated list with
+    # the NEW primary key first, then the previous key(s). encrypt uses the
+    # first key; decrypt tries each in order. Run scripts/rotate_fernet_key.py
+    # to re-encrypt every integrations row onto the new primary, then drop
+    # the old key from the env. See docs/oauth.md for the full procedure.
     encryption_key: str = ""
+    encryption_keys: str = ""
 
     # Frontend
     frontend_url: str = "http://localhost:3000"
@@ -60,6 +66,19 @@ class Settings(BaseSettings):
     def is_production(self) -> bool:
         return self.environment.lower() == "production"
 
+    @property
+    def fernet_key_list(self) -> list[str]:
+        """Ordered list of Fernet keys. First is the primary (used for
+        encryption); all are tried for decryption. ENCRYPTION_KEYS (csv)
+        wins over ENCRYPTION_KEY when set, so a rotation can specify
+        both new and old without overwriting the single-key field.
+        """
+        if self.encryption_keys:
+            return [k.strip() for k in self.encryption_keys.split(",") if k.strip()]
+        if self.encryption_key:
+            return [self.encryption_key]
+        return []
+
     @model_validator(mode="after")
     def _validate_production_required(self) -> "Settings":
         """Fail boot in production if required settings are missing or still
@@ -80,10 +99,11 @@ class Settings(BaseSettings):
             missing.append(
                 "UPSTASH_REDIS_URL + UPSTASH_REDIS_TOKEN (e.g. https://xxxxx.upstash.io / AX...)"
             )
-        if not self.encryption_key:
+        if not self.fernet_key_list:
             missing.append(
                 'ENCRYPTION_KEY (generate: python -c "from cryptography.fernet '
-                'import Fernet; print(Fernet.generate_key().decode())")'
+                'import Fernet; print(Fernet.generate_key().decode())"). '
+                "Or ENCRYPTION_KEYS=<csv> for multi-key rotation."
             )
         if not self.better_auth_secret:
             missing.append("BETTER_AUTH_SECRET (generate: openssl rand -base64 32)")

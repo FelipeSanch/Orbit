@@ -107,3 +107,47 @@ The O365 library provides Pythonic access to Microsoft Graph. After token refres
 ## Revocation
 
 `DELETE /api/auth/microsoft` deletes the token row from the `integrations` table. Microsoft does not have a simple token revocation endpoint — removing the stored tokens effectively disconnects the integration.
+
+## Rotating the Fernet encryption key
+
+`encryption.py` uses `MultiFernet` so a key rotation can run with both the new and the previous key live at the same time — no downtime, no forced re-OAuth.
+
+1. **Generate a new key.**
+
+   ```bash
+   python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"
+   ```
+
+2. **Add it as the new primary, keeping the old key as fallback.** Edit the deployment's `.env` (or your platform's secret manager) and set:
+
+   ```env
+   ENCRYPTION_KEYS=<new>,<old>
+   ```
+
+   `ENCRYPTION_KEYS` (CSV, primary first) overrides `ENCRYPTION_KEY` (single). Restart the backend so it loads the new chain. From this point, all new writes use `<new>`; reads of old rows still succeed via the fallback.
+
+3. **Re-encrypt every row onto the new primary.**
+
+   ```bash
+   cd backend
+   python -m scripts.rotate_fernet_key --dry-run        # validate first
+   python -m scripts.rotate_fernet_key                  # do it
+   ```
+
+   The script walks the `integrations` table, decrypts each token through the chain, and rewrites it encrypted with the new primary. Idempotent — re-running on an already-rotated row is harmless.
+
+   For a scoped run (e.g. validating against one user before a full sweep):
+
+   ```bash
+   python -m scripts.rotate_fernet_key --user-id <uuid>
+   ```
+
+4. **Drop the old key once `failed=0`.** Edit `.env` again:
+
+   ```env
+   ENCRYPTION_KEYS=<new>
+   ```
+
+   Or revert to the single-key form: `ENCRYPTION_KEY=<new>`. Restart the backend. The old key is no longer needed and should be removed from any secret manager that stored it.
+
+If the script reports any failed rows, it lists them and exits non-zero without writing partial updates for those users. Common causes: a row encrypted under a key that's no longer in the chain (someone rotated in the past and dropped the key too early), or fixture rows from test runs that were never written with a real key. Investigate before re-running.
