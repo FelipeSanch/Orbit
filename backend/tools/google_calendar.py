@@ -2,10 +2,13 @@ import json
 from datetime import datetime, timedelta, timezone
 from zoneinfo import ZoneInfo
 
+import httplib2
 from agno.tools.decorator import tool
+from google_auth_httplib2 import AuthorizedHttp
 from googleapiclient.discovery import build
 
 from services.google_token_manager import GoogleTokenManager
+from services.graph_safety import HTTP_TIMEOUT_S
 
 try:
     _DEFAULT_ZONE_NAME = "America/New_York"
@@ -53,7 +56,10 @@ def create_google_calendar_tools(
 
     async def _service():
         creds = await token_manager.get_credentials(user_id)
-        return build("calendar", "v3", credentials=creds, cache_discovery=False)
+        # Enforce a hard timeout via the underlying httplib2.Http instance.
+        # AuthorizedHttp keeps credential injection working.
+        http = AuthorizedHttp(creds, http=httplib2.Http(timeout=HTTP_TIMEOUT_S))
+        return build("calendar", "v3", http=http, cache_discovery=False)
 
     @tool
     async def list_events(

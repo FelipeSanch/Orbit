@@ -66,6 +66,19 @@ export function ChatPanel() {
           });
           break;
 
+        case "tool_progress":
+          // Surfaced when a tool call hasn't completed within the
+          // configured threshold (default 5s, tunable from server data).
+          // Routed to the activity feed so the user sees the call is
+          // still in flight; no chat-stream interruption.
+          addActivity({
+            id: crypto.randomUUID(),
+            type: "tool_progress",
+            data: event.data,
+            timestamp: new Date().toISOString(),
+          });
+          break;
+
         case "approval_required":
           addApproval({
             id: event.data.approval_id as string,
@@ -101,23 +114,38 @@ export function ChatPanel() {
           break;
 
         case "error": {
-          const raw = String(event.data.message ?? "");
-          let friendly: string;
-          if (/Failed to fetch|NetworkError|ECONNREFUSED/i.test(raw)) {
-            friendly =
-              "Couldn't reach the server. Check that the backend is running and try again.";
-          } else if (/rate limit|429/i.test(raw)) {
-            friendly =
-              "Slow down — too many requests right now. Try again in a moment.";
-          } else if (/Microsoft account not connected/i.test(raw)) {
-            friendly =
-              "Microsoft isn't connected yet. Open Settings and connect your account to use email, calendar, or tasks.";
-          } else if (/Paused run not found|no_run|no_session/i.test(raw)) {
-            friendly =
-              "That approval request expired. Send your message again to retry.";
-          } else {
-            friendly = raw || "Something went wrong. Please try again.";
-          }
+          // Backend emits a typed envelope {code, user_message}. Switch on
+          // code instead of regex-matching free-form text. user_message is
+          // the source of truth for what to show; only fall back to a
+          // per-code default if the backend omitted it.
+          const code = String(event.data.code ?? "");
+          const userMessage = String(event.data.user_message ?? "");
+          const defaults: Record<string, string> = {
+            session_expired:
+              "Your session expired. Please sign in again.",
+            run_error:
+              "Something went wrong on our side. Please try again.",
+            resume_error:
+              "Couldn't complete that action. Please try again.",
+            graph_throttled:
+              "Microsoft is rate-limiting requests. Try again shortly.",
+            graph_timeout:
+              "Microsoft Graph took too long to respond. The action may still have completed on their side.",
+            graph_error:
+              "Microsoft Graph returned an error. Please try again.",
+            microsoft_not_connected:
+              "Microsoft isn't connected yet. Open Settings and connect your account to use email, calendar, or tasks.",
+            google_not_connected:
+              "Google Calendar isn't connected yet. Open Settings to connect it.",
+            rate_limited:
+              "Slow down — too many requests right now. Try again in a moment.",
+            daily_cap_reached:
+              "You've hit your daily usage cap. Resets at 00:00 UTC.",
+          };
+          const friendly =
+            userMessage ||
+            defaults[code] ||
+            "Something went wrong. Please try again.";
           finishStream(friendly);
           break;
         }

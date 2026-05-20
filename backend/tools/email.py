@@ -163,7 +163,12 @@ def create_email_tools(token_manager: TokenManager, user_id: str) -> list:
             for addr in bcc.split(","):
                 msg.bcc.add(addr.strip())
 
-        msg.send()
+        # O365 msg.send() returns True on success, False on a non-raising
+        # rejection by Graph (missing recipient, etc.). Surface False as
+        # an exception so the tool_result lands as an error envelope
+        # instead of a fake "sent" claim.
+        if not msg.send():
+            raise RuntimeError("Microsoft Graph rejected the send request.")
 
         return json.dumps({"status": "sent", "to": to, "subject": subject})
 
@@ -184,7 +189,8 @@ def create_email_tools(token_manager: TokenManager, user_id: str) -> list:
 
         reply = original.reply(to_all=reply_all)
         reply.body = body
-        reply.send()
+        if not reply.send():
+            raise RuntimeError("Microsoft Graph rejected the reply request.")
 
         return json.dumps(
             {

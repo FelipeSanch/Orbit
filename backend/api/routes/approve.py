@@ -447,6 +447,12 @@ async def approve_action(
                 yield ev
         except Exception as e:
             logger.exception("Error continuing approved run: %s", e)
-            yield _sse("error", {"message": str(e)})
+            yield _sse(
+                "error",
+                {
+                    "code": "resume_error",
+                    "user_message": "Couldn't complete that action. Please try again.",
+                },
+            )
 
     return EventSourceResponse(event_generator())

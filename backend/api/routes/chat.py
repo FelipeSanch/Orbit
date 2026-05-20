@@ -143,6 +143,14 @@ async def chat(
                         pass
         except Exception as e:
             logger.exception("Error in event_generator: %s", e)
-            yield ServerSentEvent(data=json.dumps({"message": str(e)}), event="error")
+            yield ServerSentEvent(
+                data=json.dumps(
+                    {
+                        "code": "run_error",
+                        "user_message": "Something went wrong on our side. Please try again.",
+                    }
+                ),
+                event="error",
+            )
 
     return EventSourceResponse(event_generator())

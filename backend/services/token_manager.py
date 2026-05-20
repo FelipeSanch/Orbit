@@ -9,6 +9,7 @@ import msal
 from config import settings
 from repositories import integrations as integ_repo
 from services.encryption import decrypt_token, encrypt_token
+from services.graph_safety import HTTP_TIMEOUT_S
 
 if TYPE_CHECKING:
     from O365 import Account
@@ -98,6 +99,9 @@ class TokenManager:
         session = account.con.get_session(load_token=False)
         session.headers.update({"Authorization": f"Bearer {access_token}"})
         account.con.session = session
+        # Enforce a hard request timeout on every Graph call. Without this,
+        # a slow upstream stalls the SSE stream until the model gives up.
+        account.con.timeout = HTTP_TIMEOUT_S
         return account
 
     async def get_account(self, user_id: str) -> Account:

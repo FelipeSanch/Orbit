@@ -4,10 +4,23 @@ export type SSEEventType =
   | "content_done"
   | "tool_call"
   | "tool_result"
+  | "tool_progress"
   | "approval_required"
   | "agent_delegation"
   | "error"
   | "stream_end";
+
+export type SSEErrorCode =
+  | "session_expired"
+  | "run_error"
+  | "resume_error"
+  | "graph_throttled"
+  | "graph_timeout"
+  | "graph_error"
+  | "microsoft_not_connected"
+  | "google_not_connected"
+  | "rate_limited"
+  | "daily_cap_reached";
 
 export interface StreamStartEvent {
   run_id: string;
@@ -33,6 +46,12 @@ export interface ToolResultEvent {
   result: string;
 }
 
+export interface ToolProgressEvent {
+  tool_name: string;
+  tool_call_id: string;
+  elapsed_s: number;
+}
+
 export interface ApprovalRequiredEvent {
   approval_id: string;
   tool_name: string;
@@ -47,8 +66,8 @@ export interface AgentDelegationEvent {
 }
 
 export interface ErrorEvent {
-  message: string;
-  code: string;
+  code: SSEErrorCode | string;
+  user_message: string;
 }
 
 export interface StreamEndEvent {
