@@ -1,5 +1,6 @@
 import json
 import uuid as _uuid
+from datetime import datetime
 
 from services.database import get_pool
 
@@ -83,8 +84,17 @@ async def fallback_context(conversation_id: str) -> str:
 
 
 async def usage_since(user_id: str, since_iso: str) -> dict:
-    """Sum token metrics across all assistant messages since a given time."""
+    """Sum token metrics across all assistant messages since a given time.
+
+    `since_iso` accepts an ISO-8601 string for caller ergonomics; we parse
+    to datetime here because asyncpg's prepared statements type-check
+    Python values before applying the SQL-level ::timestamptz cast,
+    which would otherwise reject strings.
+    """
     pool = get_pool()
+    since_dt = (
+        datetime.fromisoformat(since_iso) if isinstance(since_iso, str) else since_iso
+    )
     async with pool.acquire() as conn:
         row = await conn.fetchrow(
             """
@@ -96,10 +106,10 @@ async def usage_since(user_id: str, since_iso: str) -> dict:
             FROM messages
             WHERE user_id = $1
               AND role = 'assistant'
-              AND created_at >= $2::timestamptz
+              AND created_at >= $2
             """,
             user_id,
-            since_iso,
+            since_dt,
         )
     return {
         "messages": int(row["messages"] or 0),

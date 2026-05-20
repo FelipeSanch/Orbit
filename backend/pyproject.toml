@@ -31,6 +31,16 @@ dev = [
     "pytest-asyncio>=0.24.0",
 ]
 
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+# Pin both fixture and test loops to "session" so a session-scoped
+# asyncpg pool is reachable from every test without the
+# "attached to a different loop" error pytest-asyncio raises by default.
+asyncio_default_fixture_loop_scope = "session"
+asyncio_default_test_loop_scope = "session"
+pythonpath = ["."]
+testpaths = ["tests"]
+
 [tool.ruff]
 line-length = 100
 target-version = "py312"
