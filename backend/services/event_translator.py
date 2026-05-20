@@ -2,7 +2,7 @@ import json
 import logging
 import re
 import uuid
-from collections.abc import AsyncGenerator
+from collections.abc import AsyncGenerator, Awaitable, Callable
 
 from sse_starlette.sse import ServerSentEvent
 
@@ -70,6 +70,7 @@ async def translate_team_stream(
     user_id: str,
     conversation_id: str,
     session_id: str,
+    revalidate_session: Callable[[], Awaitable[bool]] | None = None,
 ) -> AsyncGenerator[ServerSentEvent, None]:
     """Translate Agno team stream events into our SSE protocol.
 
@@ -77,6 +78,11 @@ async def translate_team_stream(
     (RunStartedEvent / TeamRunStartedEvent typically). We use Agno's run_id
     for everything we store — pending_approvals, activity_log, message
     metadata — so a later approve-click can find the paused run.
+
+    `revalidate_session` is called at every tool-call boundary. If it
+    returns False (the user signed out or session expired mid-stream),
+    we emit a `session_expired` error event and exit the loop — fail
+    closed, never silently keep streaming under an invalid session.
     """
     full_content = ""
     approved_tool_call_ids: set[str] = set()
@@ -150,6 +156,19 @@ async def translate_team_stream(
 
         # ── Tool events ────────────────────────────────────────
         if event_type in ("ToolCallStartedEvent", "TeamToolCallStartedEvent"):
+            # Fail-closed session re-validation at every tool-call boundary.
+            # SSE streams can outlive the initial auth check; a session
+            # killed mid-conversation must not silently keep acting.
+            if revalidate_session is not None and not await revalidate_session():
+                yield _sse(
+                    "error",
+                    {
+                        "code": "session_expired",
+                        "message": "Your session expired. Please sign in again.",
+                    },
+                )
+                return
+
             tool_name, tool_args, tool_call_id = _extract_tool_info(event)
 
             # Emit delegation event for the internal routing tool, but skip

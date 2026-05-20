@@ -22,6 +22,7 @@ import {
 } from "@/components/hub/integration-card";
 import { useAuthStore } from "@/stores/auth-store";
 import { env } from "@/lib/env";
+import { getGoogleAuthUrl, getMicrosoftAuthUrl } from "@/lib/api";
 
 interface IntegrationDef {
   id: string;
@@ -236,11 +237,13 @@ export default function HubPage() {
       icon: def.icon,
       isConnected,
       scopes: def.scopes,
-      onConnect: () => {
+      onConnect: async () => {
         if (!session?.token) return;
-        const path =
-          def.id === "microsoft" ? "/api/auth/microsoft" : "/api/auth/google";
-        window.location.href = `${env.apiUrl}${path}?authorization=Bearer ${session.token}`;
+        const url =
+          def.id === "microsoft"
+            ? await getMicrosoftAuthUrl(session.token)
+            : await getGoogleAuthUrl(session.token);
+        if (url) window.location.href = url;
       },
       onDisconnect: async () => {
         if (!session?.token) return;

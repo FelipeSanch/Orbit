@@ -132,6 +132,27 @@ export async function deleteMemory(
   return response?.ok ?? false;
 }
 
+export async function getMicrosoftAuthUrl(token: string): Promise<string | null> {
+  // OAuth start now returns the Microsoft authorize URL as JSON instead of
+  // a redirect. Token travels in the Authorization header — never as a
+  // ?authorization= query param, which would leak to proxies and history.
+  const response = await safeFetch(`${env.apiUrl}/api/auth/microsoft`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  if (!response || !response.ok) return null;
+  const data = await response.json();
+  return typeof data?.url === "string" ? data.url : null;
+}
+
+export async function getGoogleAuthUrl(token: string): Promise<string | null> {
+  const response = await safeFetch(`${env.apiUrl}/api/auth/google`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  if (!response || !response.ok) return null;
+  const data = await response.json();
+  return typeof data?.url === "string" ? data.url : null;
+}
+
 export async function fetchUsageToday(token: string): Promise<{
   messages: number;
   input_tokens: number;

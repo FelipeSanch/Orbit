@@ -1,14 +1,15 @@
 import json
 import logging
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, Header, HTTPException
 from pydantic import BaseModel
 from sse_starlette.sse import EventSourceResponse, ServerSentEvent
 
-from api.deps import get_current_user
+from api.deps import get_current_user, validate_session_token
 from repositories import conversations as conv_repo
 from repositories import messages as msg_repo
 from services.agent_factory import create_team_for_user
+from services.database import get_pool
 from services.event_translator import translate_team_stream
 from services.redis import check_rate_limit
 
@@ -23,11 +24,23 @@ class ChatRequest(BaseModel):
 
 
 @router.post("")
-async def chat(request: ChatRequest, user: dict = Depends(get_current_user)):
+async def chat(
+    request: ChatRequest,
+    user: dict = Depends(get_current_user),
+    authorization: str = Header(...),
+):
     """Send a chat message and receive streaming SSE response."""
     rate_result = check_rate_limit(user["id"])
     if not rate_result.allowed:
         raise HTTPException(status_code=429, detail="Rate limit exceeded")
+
+    # Capture the session token now so the SSE translator can re-validate
+    # at tool-call boundaries. The stream can run for minutes; if the user
+    # signs out or the session expires mid-stream, we fail closed.
+    session_token = authorization.removeprefix("Bearer ")
+
+    async def revalidate() -> bool:
+        return await validate_session_token(get_pool(), session_token) is not None
 
     is_new_conversation = request.conversation_id is None
     conversation_id = request.conversation_id
@@ -63,7 +76,11 @@ async def chat(request: ChatRequest, user: dict = Depends(get_current_user)):
             run_metrics: dict = {}
             run_id_seen = ""
             async for sse_event in translate_team_stream(
-                event_stream, user["id"], conversation_id, session_id
+                event_stream,
+                user["id"],
+                conversation_id,
+                session_id,
+                revalidate_session=revalidate,
             ):
                 if sse_event.event == "content_done" and sse_event.data:
                     try:

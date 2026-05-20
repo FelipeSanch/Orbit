@@ -1,17 +1,17 @@
 import json
 import logging
-from datetime import datetime
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, Header, HTTPException
 from pydantic import BaseModel
 from sse_starlette.sse import EventSourceResponse, ServerSentEvent
 
-from api.deps import get_current_user
+from api.deps import get_current_user, validate_session_token
 from repositories import activity as activity_repo
 from repositories import approvals as approval_repo
 from repositories import conversations as conv_repo
 from repositories import messages as msg_repo
 from services.agent_factory import create_team_for_user
+from services.database import get_pool
 from services.event_translator import translate_team_stream
 from services.google_token_manager import google_token_manager
 from services.token_manager import token_manager
@@ -21,19 +21,6 @@ from tools.google_calendar import create_google_calendar_tools
 from tools.tasks import create_tasks_tools
 
 logger = logging.getLogger(__name__)
-
-_DIAG_LOG_PATH = "/tmp/orbit-approve-diag.log"
-
-
-def _diag(msg: str) -> None:
-    """Print to stdout AND append to a known file we can tail later."""
-    line = f"{datetime.now().isoformat()} {msg}"
-    print(line, flush=True)
-    try:
-        with open(_DIAG_LOG_PATH, "a") as f:
-            f.write(line + "\n")
-    except OSError:
-        pass
 
 
 router = APIRouter(prefix="/api/chat", tags=["approval"])
@@ -109,7 +96,9 @@ async def _run_tool_directly(
 
 @router.post("/approve")
 async def approve_action(
-    request: ApprovalRequest, user: dict = Depends(get_current_user)
+    request: ApprovalRequest,
+    user: dict = Depends(get_current_user),
+    authorization: str = Header(...),
 ):
     """Approve or reject a pending write action and resume the paused run.
 
@@ -147,6 +136,13 @@ async def approve_action(
         json.loads(tool_args_raw) if isinstance(tool_args_raw, str) else tool_args_raw
     ) or {}
 
+    # Capture the session token for mid-stream re-validation in the
+    # continuation. Same fail-closed contract as /api/chat.
+    session_token = authorization.removeprefix("Bearer ")
+
+    async def revalidate() -> bool:
+        return await validate_session_token(get_pool(), session_token) is not None
+
     async def event_generator():
         try:
             yield _sse(
@@ -170,11 +166,14 @@ async def approve_action(
                     if agno_session
                     else []
                 )
-                _diag(
-                    f"[APPROVE] session_id={session_id} "
-                    f"user={user['id']} run_id_target={run_id} "
-                    f"agno_session={'present' if agno_session else 'missing'} "
-                    f"runs_count={runs_count} run_ids_in_session={run_ids}"
+                logger.debug(
+                    "approve: session=%s user=%s target_run=%s agno_session=%s runs=%d run_ids=%s",
+                    session_id,
+                    user["id"],
+                    run_id,
+                    "present" if agno_session else "missing",
+                    runs_count,
+                    run_ids,
                 )
                 if agno_session is not None:
                     paused_run = next(
@@ -185,11 +184,8 @@ async def approve_action(
                         ),
                         None,
                     )
-                    _diag(
-                        f"[APPROVE] paused_run_found={paused_run is not None}"
-                    )
+                    logger.debug("approve: paused_run_found=%s", paused_run is not None)
             except Exception as e:
-                _diag(f"[APPROVE] aget_session threw: {e!r}")
                 logger.warning("Could not load Agno session %s: %s", session_id, e)
 
             # ── Happy path: resume the paused Agno run ────────────
@@ -222,6 +218,7 @@ async def approve_action(
                     user["id"],
                     conversation_id,
                     session_id,
+                    revalidate_session=revalidate,
                 ):
                     if sse_event.event == "content_done" and sse_event.data:
                         try:

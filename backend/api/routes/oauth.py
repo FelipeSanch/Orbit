@@ -1,11 +1,10 @@
 import secrets
 
-from fastapi import APIRouter, Depends, HTTPException, Query, Request
+from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import RedirectResponse
 
 from api.deps import get_current_user
 from config import settings
-from services.database import get_pool
 from services.redis import delete_oauth_state, get_oauth_state, set_oauth_state
 from services.token_manager import token_manager
 
@@ -13,33 +12,16 @@ router = APIRouter(prefix="/api/auth/microsoft", tags=["oauth"])
 
 
 @router.get("")
-async def microsoft_auth_start(authorization: str = Query(...)) -> RedirectResponse:
+async def microsoft_auth_start(user: dict = Depends(get_current_user)) -> dict:
     """Start Microsoft OAuth flow.
 
-    Accepts token via query param since this is a browser redirect.
+    Returns the Microsoft authorize URL as JSON; the frontend redirects.
+    The session token MUST arrive in the Authorization header — never as a
+    query param, which would leak it to proxy logs and browser history.
     """
-    if not authorization.startswith("Bearer "):
-        raise HTTPException(status_code=401, detail="Invalid authorization format")
-
-    token = authorization.removeprefix("Bearer ")
-
-    pool = get_pool()
-    async with pool.acquire() as conn:
-        row = await conn.fetchrow(
-            """SELECT u.id FROM sessions s
-               JOIN users u ON u.id = s.user_id
-               WHERE s.token = $1 AND s.expires_at > NOW()""",
-            token,
-        )
-    if not row:
-        raise HTTPException(status_code=401, detail="Invalid or expired session")
-
-    user_id = str(row["id"])
     state = secrets.token_urlsafe(32)
-    set_oauth_state(state, user_id)
-
-    auth_url = token_manager.get_auth_url(state)
-    return RedirectResponse(url=auth_url)
+    set_oauth_state(state, user["id"])
+    return {"url": token_manager.get_auth_url(state)}
 
 
 @router.api_route("/callback", methods=["GET", "POST"])

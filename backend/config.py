@@ -1,8 +1,14 @@
+from pydantic import model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8")
+
+    # Deployment environment ("development" or "production"). Production
+    # boots fail-fast if required values are missing or still point at
+    # localhost — see _validate_production_required below.
+    environment: str = "development"
 
     # Anthropic
     anthropic_api_key: str = ""
@@ -42,6 +48,43 @@ class Settings(BaseSettings):
     # Validate Twilio's webhook signature on inbound. Set false locally if
     # using a tunneling tool that strips/modifies headers.
     twilio_webhook_validate: bool = True
+
+    @property
+    def is_production(self) -> bool:
+        return self.environment.lower() == "production"
+
+    @model_validator(mode="after")
+    def _validate_production_required(self) -> "Settings":
+        """Fail boot in production if required settings are missing or still
+        point at localhost. Catches the classic "deployed with dev defaults"
+        class of bug at startup rather than at first request.
+        """
+        if not self.is_production:
+            return self
+
+        missing: list[str] = []
+        if not self.database_url or "localhost" in self.database_url:
+            missing.append("DATABASE_URL (production Neon URL)")
+        if not self.frontend_url or "localhost" in self.frontend_url:
+            missing.append("FRONTEND_URL (production frontend URL)")
+        if not self.upstash_redis_url or not self.upstash_redis_token:
+            missing.append("UPSTASH_REDIS_URL + UPSTASH_REDIS_TOKEN")
+        if not self.encryption_key:
+            missing.append("ENCRYPTION_KEY")
+        if not self.better_auth_secret:
+            missing.append("BETTER_AUTH_SECRET")
+        if not self.anthropic_api_key:
+            missing.append("ANTHROPIC_API_KEY")
+        if "localhost" in self.microsoft_redirect_uri:
+            missing.append("MICROSOFT_REDIRECT_URI (must be production backend)")
+        if "localhost" in self.google_redirect_uri:
+            missing.append("GOOGLE_REDIRECT_URI (must be production backend)")
+
+        if missing:
+            raise ValueError(
+                "Production environment requires: " + "; ".join(missing)
+            )
+        return self
 
 
 settings = Settings()

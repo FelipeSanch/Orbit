@@ -2,12 +2,11 @@ import logging
 import secrets
 from urllib.parse import quote
 
-from fastapi import APIRouter, Depends, HTTPException, Query, Request
+from fastapi import APIRouter, Depends, Request
 from fastapi.responses import RedirectResponse
 
 from api.deps import get_current_user
 from config import settings
-from services.database import get_pool
 from services.google_token_manager import google_token_manager
 from services.redis import (
     delete_oauth_pkce,
@@ -24,34 +23,17 @@ router = APIRouter(prefix="/api/auth/google", tags=["oauth"])
 
 
 @router.get("")
-async def google_auth_start(authorization: str = Query(...)) -> RedirectResponse:
+async def google_auth_start(user: dict = Depends(get_current_user)) -> dict:
     """Start Google OAuth flow.
 
-    Accepts token via query param since this is a browser redirect.
+    Returns the Google authorize URL as JSON; the frontend redirects.
+    See microsoft_auth_start for the rationale on header-only auth.
     """
-    if not authorization.startswith("Bearer "):
-        raise HTTPException(status_code=401, detail="Invalid authorization format")
-
-    token = authorization.removeprefix("Bearer ")
-
-    pool = get_pool()
-    async with pool.acquire() as conn:
-        row = await conn.fetchrow(
-            """SELECT u.id FROM sessions s
-               JOIN users u ON u.id = s.user_id
-               WHERE s.token = $1 AND s.expires_at > NOW()""",
-            token,
-        )
-    if not row:
-        raise HTTPException(status_code=401, detail="Invalid or expired session")
-
-    user_id = str(row["id"])
     state = secrets.token_urlsafe(32)
-    set_oauth_state(state, user_id)
-
+    set_oauth_state(state, user["id"])
     auth_url, code_verifier = google_token_manager.get_auth_url(state)
     set_oauth_pkce(state, code_verifier)
-    return RedirectResponse(url=auth_url)
+    return {"url": auth_url}
 
 
 @router.get("/callback")
