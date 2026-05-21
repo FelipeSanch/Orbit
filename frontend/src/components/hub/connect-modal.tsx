@@ -3,6 +3,7 @@
 import { useEffect } from "react";
 import type { ReactNode } from "react";
 import { Button } from "@/components/ui/button";
+import { Spinner } from "@/components/ui/spinner";
 
 export interface ConnectModalState {
   name: string;
@@ -133,7 +134,14 @@ export function ConnectModal({ state, onClose }: ConnectModalProps) {
               onClick={state.onDisconnect}
               disabled={state.isPending}
             >
-              Disconnect
+              {state.isPending ? (
+                <>
+                  <Spinner size="sm" className="border-white/40 border-t-white" />
+                  Disconnecting…
+                </>
+              ) : (
+                "Disconnect"
+              )}
             </Button>
           ) : (
             <Button
@@ -142,10 +150,25 @@ export function ConnectModal({ state, onClose }: ConnectModalProps) {
               onClick={state.onConnect}
               disabled={state.isPending}
             >
-              Connect
+              {state.isPending ? (
+                <>
+                  <Spinner
+                    size="sm"
+                    className="border-accent-foreground/40 border-t-accent-foreground"
+                  />
+                  Connecting…
+                </>
+              ) : (
+                "Connect"
+              )}
             </Button>
           )}
-          <Button variant="ghost" size="sm" onClick={onClose}>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={onClose}
+            disabled={state.isPending}
+          >
             Close
           </Button>
         </div>

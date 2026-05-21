@@ -274,24 +274,38 @@ export default function HubPage() {
       scopes: def.scopes,
       onConnect: async () => {
         if (!session?.token) return;
-        const result =
-          def.id === "microsoft"
-            ? await getMicrosoftAuthUrl(session.token)
-            : await getGoogleAuthUrl(session.token);
-        if (result.ok) {
-          window.location.href = result.url;
-          return;
+        setPending(true);
+        // Reflect the in-flight state inside the modal too so the spinner
+        // shows up. setModal is async w.r.t. the next render, so don't
+        // count on it landing before the await — setPending above does.
+        setModal((prev) => (prev ? { ...prev, isPending: true } : prev));
+        try {
+          const result =
+            def.id === "microsoft"
+              ? await getMicrosoftAuthUrl(session.token)
+              : await getGoogleAuthUrl(session.token);
+          if (result.ok) {
+            // Don't drop pending — the page is navigating away. Leaving
+            // the spinner up avoids a brief "Connect" flash before the
+            // browser commits the new URL.
+            window.location.href = result.url;
+            return;
+          }
+          // Surface the failure inline so Connect isn't a silent no-op.
+          const message =
+            result.reason === "unauthorized"
+              ? "Your session expired. Please sign in again."
+              : result.reason === "network"
+                ? "Couldn't reach Orbit's backend. Check your connection and retry."
+                : result.reason === "malformed"
+                  ? "Got an unexpected response from the server. Try again."
+                  : `Couldn't start connection (HTTP ${result.status ?? "error"}). Try again.`;
+          setModal((prev) =>
+            prev ? { ...prev, error: message, isPending: false } : prev,
+          );
+        } finally {
+          setPending(false);
         }
-        // Surface the failure inline so Connect isn't a silent no-op.
-        const message =
-          result.reason === "unauthorized"
-            ? "Your session expired. Please sign in again."
-            : result.reason === "network"
-              ? "Couldn't reach Orbit's backend. Check your connection and retry."
-              : result.reason === "malformed"
-                ? "Got an unexpected response from the server. Try again."
-                : `Couldn't start connection (HTTP ${result.status ?? "error"}). Try again.`;
-        setModal((prev) => (prev ? { ...prev, error: message } : prev));
       },
       onDisconnect: async () => {
         if (!session?.token) return;
