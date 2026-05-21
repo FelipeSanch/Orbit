@@ -539,7 +539,7 @@ function HeroSection() {
           One chat for
           <br />
           <span className="landing-gradient-text bg-gradient-to-r from-accent via-indigo-400 to-accent bg-clip-text text-transparent">
-            everything work
+            all your work
           </span>
         </h1>
 
@@ -559,7 +559,7 @@ function HeroSection() {
             href="/login"
             className="rounded-xl bg-accent px-7 py-3.5 text-sm font-medium text-accent-foreground shadow-lg shadow-accent/25 transition-all hover:shadow-xl hover:shadow-accent/30"
           >
-            Get Started Free
+            Get Started
           </Link>
           <a
             href="#demo"
@@ -1108,7 +1108,7 @@ function StepIllustrationConnect() {
           <svg className="h-3 w-3 text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
             <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75m-3-7.036A11.959 11.959 0 013.598 6 11.99 11.99 0 003 9.749c0 5.592 3.824 10.29 9 11.623 5.176-1.332 9-6.03 9-11.622 0-1.31-.21-2.571-.598-3.751h-.152c-3.196 0-6.1-1.248-8.25-3.285z" />
           </svg>
-          AES-256 encrypted token storage
+          Encrypted token storage with rotation
         </div>
       </div>
     </div>
@@ -1290,9 +1290,9 @@ function HowItWorksSection() {
   const steps = [
     {
       number: "01",
-      title: "Connect your Microsoft account",
+      title: "Connect your accounts",
       description:
-        "One-click OAuth securely links your Outlook Mail, Calendar, and To Do. Tokens are encrypted at rest with AES-256. Revoke access anytime from settings.",
+        "One-click OAuth links Outlook Mail, Calendar, and To Do — or Google Calendar — to Orbit. Tokens are encrypted at rest with rotation support, and you can revoke access anytime from settings.",
       illustration: <StepIllustrationConnect />,
     },
     {
@@ -1364,7 +1364,7 @@ function TrustSection() {
           <div className="mt-16 grid grid-cols-3 divide-x divide-border">
             {[
               { stat: "Zero", label: "emails stored", sub: "read on demand, never cached" },
-              { stat: "AES-256", label: "token encryption", sub: "Fernet symmetric keys" },
+              { stat: "Fernet", label: "token encryption", sub: "AES-128-CBC + HMAC, rotation-ready" },
               { stat: "You approve", label: "every action", sub: "human-in-the-loop always" },
             ].map((item) => (
               <div
@@ -1389,6 +1389,7 @@ function TrustSection() {
           <div className="mt-12 space-y-4">
             {[
               "Scoped Microsoft Graph permissions: Mail, Calendar, Tasks, and User profile only",
+              "Optional Google Calendar uses a calendar-only OAuth scope",
               "App-level authorization with per-query user scoping, no ambient access",
               "One-click revocation deletes all stored tokens immediately",
             ].map((point) => (
@@ -1428,15 +1429,15 @@ function CTASection() {
             Start in under a minute
           </h2>
           <p className="mt-5 max-w-md text-lg leading-relaxed text-muted-foreground">
-            Connect your Microsoft account, ask your first question, and let
-            Orbit handle the rest.
+            Connect Microsoft 365 (and optionally Google Calendar), ask your
+            first question, and let Orbit handle the rest.
           </p>
           <div className="mt-10 flex items-center gap-4">
             <Link
               href="/login"
               className="rounded-xl bg-accent px-8 py-4 text-sm font-medium text-accent-foreground shadow-lg shadow-accent/25 transition-all hover:shadow-xl hover:shadow-accent/30"
             >
-              Get Started Free
+              Get Started
             </Link>
             <Link
               href="/login"
