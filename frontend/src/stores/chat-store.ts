@@ -19,7 +19,7 @@ interface ChatState {
 
   addMessage: (message: Message) => void;
   appendDelta: (delta: string) => void;
-  finishStream: (fullContent: string) => void;
+  finishStream: (fullContent: string, kind?: "error") => void;
   startStreaming: (controller: AbortController) => void;
   abortStream: () => void;
   setConversationId: (id: string) => void;
@@ -76,7 +76,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
     });
   },
 
-  finishStream: (fullContent) =>
+  finishStream: (fullContent, kind) =>
     set((state) => ({
       isStreaming: false,
       streamingContent: "",
@@ -88,6 +88,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
           role: "assistant" as const,
           content: fullContent,
           createdAt: new Date().toISOString(),
+          ...(kind ? { kind } : {}),
         },
       ],
     })),

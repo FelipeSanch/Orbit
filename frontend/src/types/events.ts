@@ -79,6 +79,11 @@ export interface Message {
   role: "user" | "assistant" | "system";
   content: string;
   createdAt: string;
+  // Ephemeral, client-only: marks a bubble that was synthesized from an
+  // `error` SSE event so the renderer can style it as an error (red border,
+  // alert icon) instead of an ordinary assistant reply. Never set on
+  // messages loaded from the DB.
+  kind?: "error";
 }
 
 export type ApprovalStatus =

@@ -168,9 +168,9 @@ export function ChatPanel() {
             graph_error:
               "Microsoft Graph returned an error. Please try again.",
             microsoft_not_connected:
-              "Microsoft isn't connected yet. Open Settings and connect your account to use email, calendar, or tasks.",
+              "Microsoft isn't connected yet. Open the Hub to connect your account before I can read email, calendar, or tasks.",
             google_not_connected:
-              "Google Calendar isn't connected yet. Open Settings to connect it.",
+              "Google Calendar isn't connected yet. Open the Hub to connect it.",
             rate_limited:
               "Slow down — too many requests right now. Try again in a moment.",
             daily_cap_reached:
@@ -180,7 +180,7 @@ export function ChatPanel() {
             userMessage ||
             defaults[code] ||
             "Something went wrong. Please try again.";
-          finishStream(friendly);
+          finishStream(friendly, "error");
           break;
         }
       }
