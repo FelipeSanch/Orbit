@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useRef } from "react";
 import { MessageBubble } from "./message-bubble";
 import { OrbitLogo } from "@/components/ui/orbit-logo";
@@ -34,6 +35,10 @@ interface MessageListProps {
   streamingContent: string;
   isStreaming: boolean;
   onSuggestionClick?: (text: string) => void;
+  // True when the user has no data sources connected (no Microsoft, no
+  // Google). Drives an empty-state nudge toward the Hub instead of
+  // showing suggestion chips that would dead-end on an error.
+  noIntegrationsConnected?: boolean;
 }
 
 export function MessageList({
@@ -41,6 +46,7 @@ export function MessageList({
   streamingContent,
   isStreaming,
   onSuggestionClick,
+  noIntegrationsConnected = false,
 }: MessageListProps) {
   const bottomRef = useRef<HTMLDivElement>(null);
 
@@ -62,45 +68,71 @@ export function MessageList({
             </div>
             <div className="flex flex-col items-center gap-2">
               <h2 className="text-lg font-semibold text-foreground">
-                What can I take off your plate?
+                {noIntegrationsConnected
+                  ? "Connect a service to get started"
+                  : "What can I take off your plate?"}
               </h2>
               <p className="max-w-sm text-center text-sm text-muted-foreground">
-                I can read your inbox, manage your calendar, and keep
-                your tasks in shape. Ask me anything — or try one of these.
+                {noIntegrationsConnected
+                  ? "I'll need access to your email or calendar before I can help. Pick what you use most in the Hub — it takes about 30 seconds."
+                  : "I can read your inbox, manage your calendar, and keep your tasks in shape. Ask me anything — or try one of these."}
               </p>
             </div>
 
-            <div className="grid w-full max-w-lg grid-cols-2 gap-2.5">
-              {SUGGESTIONS.map((s) => (
-                <button
-                  key={s.label}
-                  onClick={() => onSuggestionClick?.(s.label)}
-                  className="group flex cursor-pointer flex-col gap-1.5 rounded-xl border border-border bg-surface p-3.5 text-left transition-all duration-150 hover:border-accent/30 hover:bg-accent/5 active:scale-[0.98]"
+            {noIntegrationsConnected ? (
+              <Link
+                href="/hub"
+                className="inline-flex items-center gap-2 rounded-lg bg-accent px-4 py-2 text-sm font-medium text-accent-foreground shadow-sm shadow-accent/25 transition-all duration-150 hover:brightness-110 active:brightness-95"
+              >
+                Open the Hub
+                <svg
+                  className="h-3.5 w-3.5"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                  strokeWidth={2}
+                  aria-hidden="true"
                 >
-                  <div className="flex items-center gap-2">
-                    <svg
-                      className="h-4 w-4 shrink-0 text-muted-foreground transition-colors group-hover:text-accent"
-                      fill="none"
-                      viewBox="0 0 24 24"
-                      stroke="currentColor"
-                      strokeWidth={1.5}
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        d={s.icon}
-                      />
-                    </svg>
-                    <span className="text-[13px] font-medium text-foreground">
-                      {s.label}
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    d="M17.25 8.25L21 12m0 0l-3.75 3.75M21 12H3"
+                  />
+                </svg>
+              </Link>
+            ) : (
+              <div className="grid w-full max-w-lg grid-cols-1 gap-2.5 sm:grid-cols-2">
+                {SUGGESTIONS.map((s) => (
+                  <button
+                    key={s.label}
+                    onClick={() => onSuggestionClick?.(s.label)}
+                    className="group flex cursor-pointer flex-col gap-1.5 rounded-xl border border-border bg-surface p-3.5 text-left transition-all duration-150 hover:border-accent/30 hover:bg-accent/5 active:scale-[0.98]"
+                  >
+                    <div className="flex items-center gap-2">
+                      <svg
+                        className="h-4 w-4 shrink-0 text-muted-foreground transition-colors group-hover:text-accent"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        stroke="currentColor"
+                        strokeWidth={1.5}
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          d={s.icon}
+                        />
+                      </svg>
+                      <span className="text-[13px] font-medium text-foreground">
+                        {s.label}
+                      </span>
+                    </div>
+                    <span className="text-[11px] text-muted-foreground">
+                      {s.description}
                     </span>
-                  </div>
-                  <span className="text-[11px] text-muted-foreground">
-                    {s.description}
-                  </span>
-                </button>
-              ))}
-            </div>
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
         </div>
       ) : (

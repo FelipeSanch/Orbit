@@ -13,6 +13,14 @@ import type { SSEEventType } from "@/types/events";
 
 export function ChatPanel() {
   const session = useAuthStore((s) => s.session);
+  const authLoading = useAuthStore((s) => s.isLoading);
+  const isMicrosoftConnected = useAuthStore((s) => s.isMicrosoftConnected);
+  const isGoogleConnected = useAuthStore((s) => s.isGoogleConnected);
+  // Only render the "no integrations" nudge after auth has resolved —
+  // both flags default to false during hydration, which would otherwise
+  // flash the nudge for a connected user.
+  const noIntegrationsConnected =
+    !authLoading && !isMicrosoftConnected && !isGoogleConnected;
   const {
     messages,
     streamingContent,
@@ -246,6 +254,7 @@ export function ChatPanel() {
         streamingContent={streamingContent}
         isStreaming={isStreaming}
         onSuggestionClick={handleSuggestionClick}
+        noIntegrationsConnected={noIntegrationsConnected}
       />
 
       {pendingApprovals.filter(
