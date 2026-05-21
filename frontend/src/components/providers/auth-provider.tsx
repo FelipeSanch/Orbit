@@ -12,7 +12,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     const fetchSession = async () => {
-      const { data } = await authClient.getSession();
+      // Fail closed — if Better Auth's getSession call rejects (backend
+      // down, network blip, expired+refused refresh), treat the user as
+      // unauthenticated rather than leaving the splash gate spinning.
+      // The router/middleware will bounce them to /login.
+      let data: Awaited<ReturnType<typeof authClient.getSession>>["data"] = null;
+      try {
+        const result = await authClient.getSession();
+        data = result.data;
+      } catch {
+        setAuth(null, null);
+        return;
+      }
+
       if (data?.session && data?.user) {
         setAuth(
           {

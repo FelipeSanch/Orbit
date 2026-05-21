@@ -171,50 +171,100 @@ body {
   }
 }
 
-/* ─── Login backdrop animations ──────────────────────────────────── */
+/* ─── Login backdrop: continuous mesh gradient ─────────────────────
 
-/* Background mesh drift — soft accent/violet blobs that slowly migrate
-   diagonally, giving the canvas a "living atmosphere" feel without any
-   focal motion. 60s loop so the eye never tracks it. */
-@keyframes login-bg-drift {
-  0%, 100% { background-position: 0% 0%, 100% 100%; }
-  50%      { background-position: 30% 20%, 70% 80%; }
+   Multiple soft color blobs float independently on long (45–95s) keyframe
+   cycles. Each blob has its own movement path so the composition continuously
+   morphs without ever repeating phase — the eye reads it as "always moving"
+   instead of "loops every X seconds." No rotation, no focal motion, no
+   dispersion. Just slow, ambient color. */
+
+@keyframes mesh-blob-a {
+  0%   { transform: translate3d(-15%, -10%, 0) scale(1); }
+  50%  { transform: translate3d( 10%,  20%, 0) scale(1.15); }
+  100% { transform: translate3d(-15%, -10%, 0) scale(1); }
+}
+@keyframes mesh-blob-b {
+  0%   { transform: translate3d( 20%,  15%, 0) scale(1.1); }
+  50%  { transform: translate3d(-10%, -15%, 0) scale(0.95); }
+  100% { transform: translate3d( 20%,  15%, 0) scale(1.1); }
+}
+@keyframes mesh-blob-c {
+  0%   { transform: translate3d(-20%,  18%, 0) scale(0.95); }
+  50%  { transform: translate3d( 15%, -12%, 0) scale(1.2); }
+  100% { transform: translate3d(-20%,  18%, 0) scale(0.95); }
+}
+@keyframes mesh-blob-d {
+  0%   { transform: translate3d( 18%, -18%, 0) scale(1); }
+  50%  { transform: translate3d(-18%,  12%, 0) scale(1.1); }
+  100% { transform: translate3d( 18%, -18%, 0) scale(1); }
+}
+@keyframes mesh-blob-e {
+  0%   { transform: translate3d(  0%,  22%, 0) scale(1.05); }
+  50%  { transform: translate3d(  0%, -22%, 0) scale(0.9); }
+  100% { transform: translate3d(  0%,  22%, 0) scale(1.05); }
 }
 
-.login-bg-drift {
+.mesh-blob {
+  position: absolute;
+  border-radius: 9999px;
+  filter: blur(80px);
+  will-change: transform;
+}
+
+/* Five blobs share the same animation pattern shape but unique durations,
+   delays, and base positions so they never sync up. */
+.mesh-blob-1 {
+  width: 50vw; height: 50vw;
+  left: -10%; top: -10%;
+  background: radial-gradient(circle, color-mix(in oklab, var(--accent) 55%, transparent), transparent 70%);
+  animation: mesh-blob-a 55s ease-in-out infinite;
+}
+.mesh-blob-2 {
+  width: 45vw; height: 45vw;
+  right: -10%; top: 10%;
+  background: radial-gradient(circle, color-mix(in oklab, #a78bfa 50%, transparent), transparent 70%);
+  animation: mesh-blob-b 70s ease-in-out infinite;
+}
+.mesh-blob-3 {
+  width: 55vw; height: 55vw;
+  left: 0%; bottom: -15%;
+  background: radial-gradient(circle, color-mix(in oklab, #6366f1 45%, transparent), transparent 70%);
+  animation: mesh-blob-c 90s ease-in-out infinite;
+}
+.mesh-blob-4 {
+  width: 40vw; height: 40vw;
+  right: -5%; bottom: -10%;
+  background: radial-gradient(circle, color-mix(in oklab, #c084fc 40%, transparent), transparent 70%);
+  animation: mesh-blob-d 80s ease-in-out infinite;
+}
+.mesh-blob-5 {
+  width: 35vw; height: 35vw;
+  left: 30%; top: 30%;
+  background: radial-gradient(circle, color-mix(in oklab, var(--accent) 30%, transparent), transparent 70%);
+  animation: mesh-blob-e 95s ease-in-out infinite;
+}
+
+/* Subtle noise texture overlay (CSS-only via repeated tiny gradients)
+   to break up the gradient banding that's visible on cheap monitors. */
+.mesh-noise {
+  position: absolute;
+  inset: 0;
+  opacity: 0.5;
+  mix-blend-mode: overlay;
   background-image:
-    radial-gradient(40rem 30rem at 20% 30%, color-mix(in oklab, var(--accent) 22%, transparent), transparent 70%),
-    radial-gradient(36rem 28rem at 80% 70%, color-mix(in oklab, var(--accent) 14%, transparent), transparent 75%);
-  background-repeat: no-repeat;
-  background-size: 160% 160%, 160% 160%;
-  animation: login-bg-drift 60s ease-in-out infinite;
-}
-
-/* Slow orbital rotation. Three distinct durations + directions so the
-   rings stay phase-incoherent (no eye-catching beat). */
-@keyframes login-orbit-cw  { from { transform: rotate(0deg);   } to { transform: rotate(360deg);  } }
-@keyframes login-orbit-ccw { from { transform: rotate(360deg); } to { transform: rotate(0deg);    } }
-
-.login-orbit-1 { animation: login-orbit-cw  80s linear infinite; transform-origin: 50% 50%; }
-.login-orbit-2 { animation: login-orbit-ccw 110s linear infinite; transform-origin: 50% 50%; }
-.login-orbit-3 { animation: login-orbit-cw  140s linear infinite; transform-origin: 50% 50%; }
-
-/* Tiny pulsing stars. Stagger via inline animation-delay. */
-@keyframes login-star-pulse {
-  0%, 100% { opacity: 0.25; transform: scale(1);   }
-  50%      { opacity: 1;    transform: scale(1.4); }
-}
-
-.login-star {
-  animation: login-star-pulse 4s ease-in-out infinite;
+    radial-gradient(circle at 25% 25%, rgba(255,255,255,0.04) 0, transparent 2px),
+    radial-gradient(circle at 75% 75%, rgba(255,255,255,0.04) 0, transparent 2px),
+    radial-gradient(circle at 50% 50%, rgba(0,0,0,0.03) 0, transparent 2px);
+  background-size: 7px 7px, 11px 11px, 13px 13px;
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .login-bg-drift,
-  .login-orbit-1,
-  .login-orbit-2,
-  .login-orbit-3,
-  .login-star {
+  .mesh-blob-1,
+  .mesh-blob-2,
+  .mesh-blob-3,
+  .mesh-blob-4,
+  .mesh-blob-5 {
     animation: none;
   }
 }
