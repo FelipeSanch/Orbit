@@ -1,7 +1,12 @@
 "use client";
 
 import { create } from "zustand";
-import type { Approval, Conversation, Message } from "@/types/events";
+import type {
+  Approval,
+  ApprovalStatus,
+  Conversation,
+  Message,
+} from "@/types/events";
 
 interface ChatState {
   messages: Message[];
@@ -19,7 +24,16 @@ interface ChatState {
   abortStream: () => void;
   setConversationId: (id: string) => void;
   addApproval: (approval: Approval) => void;
-  resolveApproval: (id: string, status: "approved" | "rejected") => void;
+  resolveApproval: (
+    id: string,
+    status: ApprovalStatus,
+    failureMessage?: string,
+  ) => void;
+  resolveApprovalByToolCallId: (
+    toolCallId: string,
+    status: ApprovalStatus,
+    failureMessage?: string,
+  ) => void;
   loadMessages: (messages: Message[]) => void;
   setConversations: (conversations: Conversation[]) => void;
   selectConversation: (id: string) => void;
@@ -93,10 +107,23 @@ export const useChatStore = create<ChatState>((set, get) => ({
       return { pendingApprovals: [...state.pendingApprovals, approval] };
     }),
 
-  resolveApproval: (id, status) =>
+  resolveApproval: (id, status, failureMessage) =>
     set((state) => ({
       pendingApprovals: state.pendingApprovals.map((a) =>
-        a.id === id ? { ...a, status } : a,
+        a.id === id ? { ...a, status, failureMessage } : a,
+      ),
+    })),
+
+  // Used by the SSE tool_result handler — the approval id isn't in the
+  // event payload, but the tool_call_id is, so we resolve by that.
+  // Only flips in_flight rows so a stale tool_result doesn't reopen
+  // an already-resolved approval.
+  resolveApprovalByToolCallId: (toolCallId, status, failureMessage) =>
+    set((state) => ({
+      pendingApprovals: state.pendingApprovals.map((a) =>
+        a.toolCallId === toolCallId && a.status === "in_flight"
+          ? { ...a, status, failureMessage }
+          : a,
       ),
     })),
 

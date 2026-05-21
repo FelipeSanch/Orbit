@@ -81,13 +81,21 @@ export interface Message {
   createdAt: string;
 }
 
+export type ApprovalStatus =
+  | "pending"
+  | "in_flight"
+  | "approved"
+  | "rejected"
+  | "failed";
+
 export interface Approval {
   id: string;
   toolName: string;
   toolArgs: Record<string, unknown>;
   toolCallId: string;
   runId: string;
-  status: "pending" | "approved" | "rejected";
+  status: ApprovalStatus;
+  failureMessage?: string;
 }
 
 export interface ActivityItem {

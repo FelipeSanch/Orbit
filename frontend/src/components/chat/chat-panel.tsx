@@ -29,7 +29,27 @@ export function ChatPanel() {
   } = useChatStore();
 
   const addActivity = useActivityStore((s) => s.addActivity);
+  const resolveApprovalByToolCallId = useChatStore(
+    (s) => s.resolveApprovalByToolCallId,
+  );
   const [inputValue, setInputValue] = useState("");
+
+  // tool_result.result is either a JSON envelope (success: {"status":"sent",...};
+  // error: {"error":"...","code":"graph_..."}) or a raw "Error: ..." string.
+  // Return [isError, friendlyMessage].
+  const isErrorResult = (raw: string): [boolean, string | undefined] => {
+    if (!raw) return [false, undefined];
+    if (raw.startsWith("Error:")) return [true, raw.slice(7).trim()];
+    try {
+      const parsed = JSON.parse(raw);
+      if (parsed && typeof parsed === "object" && "error" in parsed) {
+        return [true, String(parsed.error)];
+      }
+    } catch {
+      // not JSON; fall through
+    }
+    return [false, undefined];
+  };
 
   const handleEvent = useCallback(
     (event: { type: SSEEventType; data: Record<string, unknown> }) => {
@@ -57,14 +77,28 @@ export function ChatPanel() {
           });
           break;
 
-        case "tool_result":
+        case "tool_result": {
           addActivity({
             id: crypto.randomUUID(),
             type: "tool_result",
             data: event.data,
             timestamp: new Date().toISOString(),
           });
+          // Phase H: this is the real success signal — the tool actually
+          // ran (or actually errored). Drive any in_flight approval card
+          // from this event instead of trusting the /approve 200 OK.
+          const tcid = event.data.tool_call_id as string | undefined;
+          const result = String(event.data.result ?? "");
+          if (tcid) {
+            const [errored, msg] = isErrorResult(result);
+            resolveApprovalByToolCallId(
+              tcid,
+              errored ? "failed" : "approved",
+              msg,
+            );
+          }
           break;
+        }
 
         case "tool_progress":
           // Surfaced when a tool call hasn't completed within the
@@ -185,7 +219,11 @@ export function ChatPanel() {
 
   const resolveAndContinue = (approvalId: string, approved: boolean) => {
     if (!session?.token) return;
-    resolveApproval(approvalId, approved ? "approved" : "rejected");
+    // Phase H: on Send, mark in_flight — the real "approved" flip comes
+    // from the tool_result SSE event so the green check only appears
+    // when Graph actually accepted the write. On Reject there's no tool
+    // result to wait for; mark rejected immediately.
+    resolveApproval(approvalId, approved ? "in_flight" : "rejected");
     addActivity({
       id: crypto.randomUUID(),
       type: approved ? "approval_approved" : "approval_rejected",
@@ -210,10 +248,20 @@ export function ChatPanel() {
         onSuggestionClick={handleSuggestionClick}
       />
 
-      {pendingApprovals.filter((a) => a.status === "pending").length > 0 && (
+      {pendingApprovals.filter(
+        (a) =>
+          a.status === "pending" ||
+          a.status === "in_flight" ||
+          a.status === "failed",
+      ).length > 0 && (
         <div className="mx-auto flex w-full max-w-3xl flex-col gap-2 border-t border-border px-4 py-3 sm:px-6">
           {pendingApprovals
-            .filter((a) => a.status === "pending")
+            .filter(
+              (a) =>
+                a.status === "pending" ||
+                a.status === "in_flight" ||
+                a.status === "failed",
+            )
             .map((approval) => (
               <ApprovalCard
                 key={approval.id}

@@ -1,6 +1,5 @@
 "use client";
 
-import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import type { Approval } from "@/types/events";
 
@@ -159,7 +158,6 @@ export function ApprovalCard({
   onApprove,
   onReject,
 }: ApprovalCardProps) {
-  const [isLoading, setIsLoading] = useState(false);
   const label = TOOL_LABELS[approval.toolName] ?? approval.toolName;
   const iconPath = ICONS[approval.toolName] ?? ICONS.send_email;
   const primaryVerb =
@@ -169,24 +167,48 @@ export function ApprovalCard({
         ? "Delete"
         : "Confirm";
 
-  if (approval.status !== "pending") {
-    const isApproved = approval.status === "approved";
+  if (approval.status === "in_flight") {
+    // Phase H: the user clicked Send; we're waiting on tool_result to
+    // confirm Graph actually accepted the write. Card stays visible so
+    // the user has something to look at, but the buttons are gone.
     return (
       <div className="flex items-center gap-2.5 rounded-xl border border-border/60 bg-surface px-4 py-2.5 text-[13px] text-muted-foreground">
-        <span
-          className={`h-1.5 w-1.5 rounded-full ${
-            isApproved ? "bg-emerald-500" : "bg-zinc-400"
-          }`}
-        />
+        <span className="h-3 w-3 animate-spin rounded-full border-2 border-accent border-t-transparent" />
         <span className="font-medium text-foreground">{label}</span>
         <span>·</span>
-        <span>{isApproved ? "Approved" : "Rejected"}</span>
+        <span>Working…</span>
+      </div>
+    );
+  }
+
+  if (approval.status !== "pending") {
+    const failed = approval.status === "failed";
+    const isApproved = approval.status === "approved";
+    const dot = failed
+      ? "bg-rose-500"
+      : isApproved
+        ? "bg-emerald-500"
+        : "bg-zinc-400";
+    const verdict = failed ? "Failed" : isApproved ? "Sent" : "Rejected";
+    return (
+      <div className="flex items-center gap-2.5 rounded-xl border border-border/60 bg-surface px-4 py-2.5 text-[13px] text-muted-foreground">
+        <span className={`h-1.5 w-1.5 rounded-full ${dot}`} />
+        <span className="font-medium text-foreground">{label}</span>
+        <span>·</span>
+        <span>{verdict}</span>
+        {failed && approval.failureMessage && (
+          <>
+            <span>·</span>
+            <span className="truncate text-rose-400/90">
+              {approval.failureMessage}
+            </span>
+          </>
+        )}
       </div>
     );
   }
 
   const handleAction = (approved: boolean) => {
-    setIsLoading(true);
     if (approved) onApprove(approval.id);
     else onReject(approval.id);
   };
@@ -231,7 +253,6 @@ export function ApprovalCard({
           variant="ghost"
           size="sm"
           onClick={() => handleAction(false)}
-          disabled={isLoading}
           className="text-muted-foreground hover:text-foreground"
         >
           Reject
@@ -240,9 +261,8 @@ export function ApprovalCard({
           variant="primary"
           size="sm"
           onClick={() => handleAction(true)}
-          disabled={isLoading}
         >
-          {isLoading ? "Working…" : primaryVerb}
+          {primaryVerb}
         </Button>
       </div>
     </div>
