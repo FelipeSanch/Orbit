@@ -4,7 +4,12 @@ import { Suspense, useEffect, useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { env } from "@/lib/env";
-import { deleteMemory, fetchMemories, fetchUsageToday } from "@/lib/api";
+import {
+  deleteMemory,
+  fetchMemories,
+  fetchUsageToday,
+  type UsageToday,
+} from "@/lib/api";
 import { useAuthStore } from "@/stores/auth-store";
 
 function SettingsContent() {
@@ -17,13 +22,7 @@ function SettingsContent() {
   const connectedCount = [isMicrosoftConnected, isGoogleConnected].filter(
     Boolean,
   ).length;
-  const [usage, setUsage] = useState<{
-    messages: number;
-    input_tokens: number;
-    output_tokens: number;
-    total_tokens: number;
-    estimated_cost_usd: number;
-  } | null>(null);
+  const [usage, setUsage] = useState<UsageToday | null>(null);
   const [memories, setMemories] = useState<
     { id: string; memory: string; topics: string[]; updated_at: string | null }[]
   >([]);
@@ -293,6 +292,13 @@ function SettingsContent() {
                 accent
               />
             </div>
+
+            {usage && usage.daily_cap_usd > 0 && (
+              <DailyCapBar
+                spent={usage.estimated_cost_usd}
+                cap={usage.daily_cap_usd}
+              />
+            )}
           </div>
 
           {/* About Section */}
@@ -349,6 +355,62 @@ function UsageStat({
       >
         {value}
       </span>
+    </div>
+  );
+}
+
+function DailyCapBar({ spent, cap }: { spent: number; cap: number }) {
+  // Pct over the cap clamps to 100 so the bar doesn't overflow visually.
+  // The numeric line still shows the real spent value so a user a hair
+  // over the cap can see exactly where they are.
+  const pct = Math.min(100, Math.round((spent / cap) * 100));
+  const atOrOver = spent >= cap;
+  const warn = pct >= 80 && !atOrOver;
+
+  const barClass = atOrOver
+    ? "bg-red-500"
+    : warn
+      ? "bg-amber-500"
+      : "bg-accent";
+  const textClass = atOrOver
+    ? "text-red-500"
+    : warn
+      ? "text-amber-500"
+      : "text-muted-foreground";
+
+  return (
+    <div className="mt-4 rounded-lg border border-border bg-surface-raised px-3 py-2.5">
+      <div className="flex items-baseline justify-between gap-2">
+        <span className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground/70">
+          Daily cap
+        </span>
+        <span className="text-[12px] tabular-nums text-muted-foreground">
+          <span className={`font-semibold ${textClass}`}>
+            ${spent.toFixed(4)}
+          </span>
+          <span className="text-muted-foreground/60"> / ${cap.toFixed(2)}</span>
+        </span>
+      </div>
+      <div
+        className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-muted"
+        role="progressbar"
+        aria-valuenow={pct}
+        aria-valuemin={0}
+        aria-valuemax={100}
+        aria-label="Daily spend cap usage"
+      >
+        <div
+          className={`h-full rounded-full transition-all duration-300 ${barClass}`}
+          style={{ width: `${pct}%` }}
+        />
+      </div>
+      <p className={`mt-1.5 text-[11px] ${textClass}`}>
+        {atOrOver
+          ? "You've hit today's cap — new requests will be blocked until 00:00 UTC."
+          : warn
+            ? `Close to the cap (${pct}%). Heavy use may pause until 00:00 UTC.`
+            : "Resets at 00:00 UTC."}
+      </p>
     </div>
   );
 }

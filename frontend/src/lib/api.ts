@@ -238,13 +238,18 @@ export async function disconnectTelegram(token: string): Promise<boolean> {
   return response?.ok ?? false;
 }
 
-export async function fetchUsageToday(token: string): Promise<{
+export interface UsageToday {
   messages: number;
   input_tokens: number;
   output_tokens: number;
   total_tokens: number;
   estimated_cost_usd: number;
-} | null> {
+  // Per-user daily spend cap in USD. 0 means disabled. Sourced from
+  // backend settings.daily_spend_cap_usd via /api/usage/today.
+  daily_cap_usd: number;
+}
+
+export async function fetchUsageToday(token: string): Promise<UsageToday | null> {
   const response = await safeFetch(`${env.apiUrl}/api/usage/today`, {
     headers: { Authorization: `Bearer ${token}` },
   });
