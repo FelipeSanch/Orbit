@@ -192,12 +192,17 @@ export const pendingApprovals = pgTable(
     toolArgs: jsonb("tool_args").notNull(),
     toolCallId: text("tool_call_id").notNull(),
     status: text("status").notNull().default("pending"),
-    // Where this approval should be delivered: 'web' (SSE card) or 'sms'.
+    // Where this approval should be delivered: 'web' (SSE card), 'sms', 'telegram'.
     channel: text("channel").notNull().default("web"),
+    // Short opaque token (8 chars) for channels with bounded callback payloads.
+    // Telegram inline-button callback_data is capped at 64 bytes, so we can't
+    // put a 36-char UUID in there. Lookup by short_token instead.
+    shortToken: text("short_token"),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     resolvedAt: timestamp("resolved_at", { withTimezone: true }),
   },
   (table) => [
     index("idx_approvals_pending").on(table.userId, table.status),
+    uniqueIndex("idx_approvals_short_token").on(table.shortToken),
   ],
 );

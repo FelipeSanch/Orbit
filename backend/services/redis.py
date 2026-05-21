@@ -113,3 +113,36 @@ def delete_oauth_pkce(state: str) -> None:
         client.delete(f"oauth_pkce:{state}")
     else:
         _oauth_pkce.pop(state, None)
+
+
+# ---------- Telegram pairing codes ----------
+# Same fallback pattern as oauth_state: Upstash when configured, in-memory
+# dict otherwise. Codes are single-use — callers consume via
+# pop_pairing_code, not get + delete.
+
+_telegram_pair: dict[str, str] = {}
+
+
+def set_pairing_code(channel: str, code: str, user_id: str, ex: int = 600) -> None:
+    client = get_redis_client()
+    if client is not None:
+        client.set(f"{channel}:pair:{code}", user_id, ex=ex)
+    else:
+        _telegram_pair[code] = user_id
+
+
+def pop_pairing_code(channel: str, code: str) -> str | None:
+    """Atomically consume a pairing code: return the bound user_id and
+    delete the entry, or return None if missing.
+
+    Single-use semantics: two concurrent callers see at most one success.
+    """
+    client = get_redis_client()
+    if client is not None:
+        key = f"{channel}:pair:{code}"
+        val = client.get(key)
+        if val is None:
+            return None
+        client.delete(key)
+        return str(val)
+    return _telegram_pair.pop(code, None)

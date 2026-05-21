@@ -28,14 +28,16 @@ async def create(
     tool_args: dict,
     tool_call_id: str,
     channel: str = "web",
+    short_token: str | None = None,
 ) -> dict:
     pool = get_pool()
     async with pool.acquire() as conn:
         row = await conn.fetchrow(
             """INSERT INTO pending_approvals
                (id, user_id, conversation_id, run_id, session_id,
-                tool_name, tool_args, tool_call_id, status, channel)
-               VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 'pending', $9)
+                tool_name, tool_args, tool_call_id, status, channel,
+                short_token)
+               VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 'pending', $9, $10)
                RETURNING *""",
             _to_uuid(approval_id),
             user_id,
@@ -46,8 +48,26 @@ async def create(
             json.dumps(tool_args),
             tool_call_id,
             channel,
+            short_token,
         )
     return _row_to_dict(row)
+
+
+async def get_by_short_token(short_token: str, user_id: str) -> dict | None:
+    """Look up a pending approval by its short_token (Telegram callbacks).
+
+    Scoped by user_id so a callback from one user can't resolve another
+    user's approval even if short_tokens collided by accident.
+    """
+    pool = get_pool()
+    async with pool.acquire() as conn:
+        row = await conn.fetchrow(
+            """SELECT * FROM pending_approvals
+               WHERE short_token = $1 AND user_id = $2 AND status = 'pending'""",
+            short_token,
+            user_id,
+        )
+    return _row_to_dict(row) if row else None
 
 
 async def get_latest_pending_for_user(user_id: str, channel: str) -> dict | None:

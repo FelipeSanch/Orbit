@@ -1,13 +1,13 @@
 # Orbit — Project Status
 
-Last updated: 2026-05-19 (post v2 platform landing)
+Last updated: 2026-05-21 (post Telegram pivot)
 
 > Big architectural changes are tracked separately in `docs/ARCHITECTURE_CHANGES.md`.
 
-**Where we are right now**: Phase 1–3 substantially complete. Phase 4 (SMS over
-Twilio) is code-complete and gated on Twilio toll-free verification. Phase 5
-landed early with Google Calendar as a parallel-to-Outlook integration. Web
-dashboard is hosting-ready.
+**Where we are right now**: Phase 1–3 substantially complete. Phase 4 pivoted
+from SMS/Twilio (TFV-gated, plain-text-only) to **Telegram** — code shipped,
+local-tested. Phase 5 landed early with Google Calendar as a parallel-to-Outlook
+integration. Web dashboard is hosting-ready.
 
 ## What's Built and Working
 
@@ -54,8 +54,8 @@ dashboard is hosting-ready.
 ## Current Phase: Phase 2 (Approval Flow + Cross-Tool Synthesis) — In Progress
 
 ### Active work
-- **SMS surface (Phase A + B + C complete, blocked on Twilio TFV approval).** Channels table, twilio service, inbound webhook, agent dispatch, YES/NO approval flow over SMS. Shared `services/run_resume.py` between web and SMS approval paths so behavior stays identical. Code path is live; tunnel up at `celtic-remold-unrefined.ngrok-free.dev`. Webhook config gated by Twilio toll-free verification (1–2 business days).
-- **What works once approval clears:** text the trial number → backend logs the inbound, runs orchestrator, replies on the phone. Reads work immediately. Writes pause and SMS a "Reply YES" preview; a YES reply resumes the run.
+- **Telegram surface (shipped 2026-05-21).** Replaces the previous SMS/Twilio plan. `services/telegram_client.py` (httpx Bot API wrapper) + `services/telegram_dispatch.py` (inbound message + callback-query handlers) + `api/routes/telegram.py` (webhook + pair/status/disconnect). Inline-keyboard `✅ Send / ❌ Reject` buttons replace SMS YES/NO. Pairing via 6-digit code in the Hub UI → user taps `/start <code>` in Telegram → chat is bound. Shared `services/run_resume.py` between web and Telegram approval paths so behavior stays identical. Bot is `@orbit101bot`. Local dev needs ngrok + `python -m scripts.setup_telegram_webhook --url ...` to register.
+- **Twilio fully removed (commit `60e68c4`).** Files deleted, deps dropped, env stripped. The `pending_approvals.channel` column now takes `'web'` or `'telegram'`.
 
 ### Critical fixes landed
 - **asyncpg `sslmode` bug** — Every Agno-dependent call (memory, paused-run resume, session lookup) was crashing on Neon because SQLAlchemy+asyncpg doesn't parse libpq's `sslmode` query param. Fix in `services/agno_db.py`: build the engine manually with `connect_args={"ssl": sslmode_value}` after stripping libpq-only query params.
@@ -100,7 +100,7 @@ dashboard is hosting-ready.
 - [ ] Trust level progression (skip manual approval for reads after N approvals)
 
 ### Phase 3+
-See `docs/ROADMAP.md` for Phases 3-6 (Memory, SMS/Twilio, Expand Integrations, Proactive Agents).
+See `docs/ROADMAP.md` for Phases 3-6 (Memory, Telegram, Expand Integrations, Proactive Agents).
 
 ## Key Files to Know
 

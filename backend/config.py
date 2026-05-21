@@ -41,6 +41,14 @@ class Settings(BaseSettings):
     google_client_secret: str = ""
     google_redirect_uri: str = "http://localhost:8000/api/auth/google/callback"
 
+    # Telegram bot. telegram_bot_token comes from @BotFather; webhook_secret
+    # is any random string you generate and pass to Telegram via setWebhook.
+    # Telegram echoes it back as the X-Telegram-Bot-Api-Secret-Token header
+    # on every inbound update — we compare in constant time to reject spoofed
+    # webhook calls. Both empty by default so dev boots without the bot.
+    telegram_bot_token: str = ""
+    telegram_webhook_secret: str = ""
+
     # Encryption. ENCRYPTION_KEY is the single-key path used by every install;
     # during a rotation, set ENCRYPTION_KEYS to a comma-separated list with
     # the NEW primary key first, then the previous key(s). encrypt uses the

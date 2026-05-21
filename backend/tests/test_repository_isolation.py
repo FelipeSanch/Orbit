@@ -131,7 +131,7 @@ async def test_channels_delete_refuses_foreign_owner(two_users):
 
 
 # ─────────────────────────────────────────────────────────────────────
-# approval_repo (4 methods)
+# approval_repo (5 methods)
 # ─────────────────────────────────────────────────────────────────────
 
 
@@ -189,6 +189,33 @@ async def test_approvals_resolve_is_unscoped_callers_must_check_first(two_users)
     # After resolve, get_pending should not return it (status filter).
     re_fetch = await approval_repo.get_pending(approval["id"], a["id"])
     assert re_fetch is None
+
+
+async def test_approvals_get_by_short_token_refuses_foreign_owner(two_users):
+    """Telegram callback lookups must be scoped by user_id. Even if B
+    somehow learned A's short_token (or a token collision happened
+    across users), get_by_short_token(token, B) must return None."""
+    a, b = two_users
+    conv_a = await conv_repo.create(a["id"])
+    short = f"st-{uuid.uuid4().hex[:6]}"
+    await approval_repo.create(
+        approval_id=str(uuid.uuid4()),
+        user_id=a["id"],
+        conversation_id=conv_a["id"],
+        run_id=f"run-{uuid.uuid4().hex[:8]}",
+        session_id=conv_a["id"],
+        tool_name="send_email",
+        tool_args={"to": "x@example.com"},
+        tool_call_id=f"tc-{uuid.uuid4().hex[:8]}",
+        channel="telegram",
+        short_token=short,
+    )
+    # A can fetch it.
+    own = await approval_repo.get_by_short_token(short, a["id"])
+    assert own is not None
+    # B cannot.
+    leaked = await approval_repo.get_by_short_token(short, b["id"])
+    assert leaked is None
 
 
 # ─────────────────────────────────────────────────────────────────────

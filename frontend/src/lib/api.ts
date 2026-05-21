@@ -165,6 +165,79 @@ export function getGoogleAuthUrl(token: string): Promise<AuthUrlResult> {
   return fetchAuthUrl("/api/auth/google", token);
 }
 
+export interface TelegramPairing {
+  code: string;
+  bot_username: string;
+  deeplink: string;
+  expires_in_seconds: number;
+}
+
+export type TelegramPairResult =
+  | { ok: true; pairing: TelegramPairing }
+  | {
+      ok: false;
+      reason: "network" | "unauthorized" | "server" | "malformed" | "unconfigured";
+      message?: string;
+      status?: number;
+    };
+
+export async function pairTelegram(token: string): Promise<TelegramPairResult> {
+  const response = await safeFetch(`${env.apiUrl}/api/channels/telegram/pair`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  if (!response) return { ok: false, reason: "network" };
+  if (response.status === 401)
+    return { ok: false, reason: "unauthorized", status: 401 };
+  if (response.status === 503) {
+    // Bot token not configured server-side; surface the server's message.
+    try {
+      const body = await response.json();
+      return { ok: false, reason: "unconfigured", message: body?.detail };
+    } catch {
+      return { ok: false, reason: "unconfigured" };
+    }
+  }
+  if (!response.ok) return { ok: false, reason: "server", status: response.status };
+  try {
+    const data = (await response.json()) as TelegramPairing;
+    if (typeof data?.code === "string" && typeof data?.deeplink === "string") {
+      return { ok: true, pairing: data };
+    }
+    return { ok: false, reason: "malformed" };
+  } catch {
+    return { ok: false, reason: "malformed" };
+  }
+}
+
+export interface TelegramStatus {
+  connected: boolean;
+  chat_id?: string;
+  verified_at?: string;
+}
+
+export async function fetchTelegramStatus(
+  token: string,
+): Promise<TelegramStatus | null> {
+  const response = await safeFetch(`${env.apiUrl}/api/channels/telegram/status`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  if (!response || !response.ok) return null;
+  try {
+    return (await response.json()) as TelegramStatus;
+  } catch {
+    return null;
+  }
+}
+
+export async function disconnectTelegram(token: string): Promise<boolean> {
+  const response = await safeFetch(`${env.apiUrl}/api/channels/telegram`, {
+    method: "DELETE",
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  return response?.ok ?? false;
+}
+
 export async function fetchUsageToday(token: string): Promise<{
   messages: number;
   input_tokens: number;

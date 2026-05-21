@@ -4,6 +4,37 @@ Running log of non-trivial architectural decisions and refactors. Bug fixes and 
 
 ---
 
+## 2026-05-21 — Telegram replaces SMS as the second surface
+
+**Pivot**
+The Twilio/SMS path (see 2026-04-26 entry below) was killed before going live. Twilio toll-free verification is a 1–2 business-day gate per number, SMS replies are constrained to plain-text YES/NO (160-char segments, no rich buttons), and the dispatch was burning per-message billing. Telegram is permissionless, free, supports inline-keyboard approval buttons, and has slash-command primitives — strictly better UX for the second-surface use case.
+
+**Change**
+- `backend/services/telegram_client.py` — httpx wrapper around the Bot API (no `python-telegram-bot` dep). Module-level bot-username cache warmed in lifespan.
+- `backend/services/telegram_dispatch.py` — mirror of the deleted `sms_dispatch.py` (recoverable via `git show 5de2916:backend/services/sms_dispatch.py`). `handle_inbound_message` and `handle_callback_query`. Inline-keyboard `✅ Send / ❌ Reject` buttons replace the YES/NO text protocol.
+- `backend/api/routes/telegram.py` — `POST /api/webhooks/telegram/inbound` (header-verified via `X-Telegram-Bot-Api-Secret-Token`, `BackgroundTasks` dispatch, 200 fast) + `POST/GET/DELETE /api/channels/telegram[/pair|/status]`.
+- `backend/services/redis.py` — added `set_pairing_code` / `pop_pairing_code` with single-use semantics (atomic GET-then-DELETE on Upstash; pop on the in-memory dict for local dev).
+- `backend/scripts/setup_telegram_webhook.py` — `--url`, `--delete`, `--info` CLI for registering the webhook with Telegram (needs to be rerun whenever the ngrok URL rotates).
+
+**Schema change**
+Added `pending_approvals.short_token TEXT UNIQUE`. Telegram callback_data is capped at 64 bytes and our `approval_id` is a 36-char UUID — wouldn't fit cleanly alongside an action prefix. The dispatch generates an 8-char `secrets.token_urlsafe(6)` token at approval creation and the callback (`a:<short>` / `r:<short>`) looks it up scoped by `user_id`. Drizzle-pushed.
+
+**Pairing flow**
+1. Hub UI calls `POST /api/channels/telegram/pair` → backend generates a 6-digit code, stores `{telegram:pair:<code> → user_id}` in Redis with 10-min TTL, returns `{code, bot_username, deeplink}`.
+2. User taps the `t.me/<bot>?start=<code>` deeplink (or sends `/start <code>` manually).
+3. Webhook receives `/start`, dispatch calls `redis.pop_pairing_code('telegram', code)` (atomic), upserts the channel binding (`type='telegram', address=<chat_id>`), replies with confirmation.
+4. Hub polls `/api/channels/telegram/status` every 2s for 10 minutes; flips to Connected when the binding lands.
+
+**Approval round-trip**
+- Free text → `team.arun(stream=False)` → if `status == 'paused'`, persist `pending_approvals` with `channel='telegram'` + `short_token`, send a one-line preview with the inline keyboard.
+- Button tap → `handle_callback_query` answers the callback (15s ack window), looks up the approval by `short_token` scoped to `user_id`, resolves it, strips the keyboard via `editMessageReplyMarkup`, calls `services/run_resume.resume_approval` (shared with the web approve route — both happy-path and direct-tool-fallback return a single string), and sends the result back through `send_message`. The Telegram channel acts as a peer surface: the response always returns through the channel the user used, never silently into the web SSE.
+
+**Files removed / renamed**
+- `backend/services/twilio_client.py`, `backend/services/sms_dispatch.py`, `backend/api/routes/sms.py` — deleted in commit `60e68c4`.
+- `pending_approvals.channel` now takes `'web'` or `'telegram'`. `'sms'` values are still readable by the schema but no longer written.
+
+---
+
 ## 2026-04-21 — Agno session persistence + streaming approval flow
 
 **Problem**

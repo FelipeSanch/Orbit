@@ -1,11 +1,12 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { CosmicFrame } from "@/components/hub/cosmic-frame";
 import {
   ConnectModal,
   type ConnectModalState,
 } from "@/components/hub/connect-modal";
+import { TelegramPairingModal } from "@/components/hub/telegram-pairing-modal";
 import {
   GithubIcon,
   GmailIcon,
@@ -22,7 +23,11 @@ import {
 } from "@/components/hub/integration-card";
 import { useAuthStore } from "@/stores/auth-store";
 import { env } from "@/lib/env";
-import { getGoogleAuthUrl, getMicrosoftAuthUrl } from "@/lib/api";
+import {
+  fetchTelegramStatus,
+  getGoogleAuthUrl,
+  getMicrosoftAuthUrl,
+} from "@/lib/api";
 
 interface IntegrationDef {
   id: string;
@@ -160,7 +165,7 @@ const INTEGRATIONS: IntegrationDef[] = [
   },
 ];
 
-const COMING_SOON = new Set(["telegram", "gmail", "notion", "slack", "github"]);
+const COMING_SOON = new Set(["gmail", "notion", "slack", "github"]);
 
 export default function HubPage() {
   const session = useAuthStore((s) => s.session);
@@ -171,9 +176,27 @@ export default function HubPage() {
   const setGoogleConnected = useAuthStore((s) => s.setGoogleConnected);
 
   const [modal, setModal] = useState<ConnectModalState | null>(null);
+  const [telegramModalOpen, setTelegramModalOpen] = useState(false);
+  const [telegramConnected, setTelegramConnected] = useState(false);
+  const [telegramChatId, setTelegramChatId] = useState<string | undefined>();
   const [pending, setPending] = useState(false);
   const [filter, setFilter] = useState<"all" | "connected" | "available">("all");
   const [zoom, setZoom] = useState(1);
+
+  // Hydrate the Telegram connection state on mount + after the modal closes
+  // (covers the case where the user paired in a separate tab).
+  useEffect(() => {
+    if (!session?.token) return;
+    let cancelled = false;
+    fetchTelegramStatus(session.token).then((status) => {
+      if (cancelled || !status) return;
+      setTelegramConnected(status.connected);
+      setTelegramChatId(status.chat_id);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [session?.token]);
 
   const ZOOM_MIN = 0.6;
   const ZOOM_MAX = 1.4;
@@ -189,6 +212,8 @@ export default function HubPage() {
       return isMicrosoftConnected ? "connected" : "available";
     if (id === "google-calendar")
       return isGoogleConnected ? "connected" : "available";
+    if (id === "telegram")
+      return telegramConnected ? "connected" : "available";
     return COMING_SOON.has(id) ? "soon" : "available";
   };
 
@@ -228,6 +253,13 @@ export default function HubPage() {
         isConnected: false,
         scopes: def.scopes,
       });
+      return;
+    }
+
+    // Telegram has a custom pair/code/poll flow, not OAuth — route to
+    // the dedicated modal instead of the generic Connect modal.
+    if (def.id === "telegram") {
+      setTelegramModalOpen(true);
       return;
     }
 
@@ -468,6 +500,18 @@ export default function HubPage() {
       </div>
 
       <ConnectModal state={modal} onClose={() => setModal(null)} />
+
+      <TelegramPairingModal
+        open={telegramModalOpen}
+        token={session?.token ?? null}
+        initialConnected={telegramConnected}
+        initialChatId={telegramChatId}
+        onClose={() => setTelegramModalOpen(false)}
+        onConnectedChange={(connected, chatId) => {
+          setTelegramConnected(connected);
+          setTelegramChatId(chatId);
+        }}
+      />
     </div>
   );
 }

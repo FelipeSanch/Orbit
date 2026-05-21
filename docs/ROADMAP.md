@@ -38,15 +38,18 @@ Make Orbit remember things and feel complete.
 - [ ] Dashboard polish — loading states, error states, empty states, responsive layout
 - [ ] Activity feed colors per agent type, clean entry formatting
 
-## Phase 4: SMS Interface (Twilio)
+## Phase 4: Telegram Interface
 
-Text your AI assistant from your phone.
+Chat with your AI assistant from Telegram. (Pivoted from SMS/Twilio on
+2026-05-21 — Twilio's TFV gate would have blocked shipping and SMS
+plain-text replies couldn't match Telegram's inline-button approvals.)
 
-- [ ] Twilio number + webhook endpoint in FastAPI
-- [ ] Incoming SMS -> `orchestrator.arun()` -> response via Twilio API
-- [ ] Approval flow over SMS — send draft as text, reply "yes" or "no"
-- [ ] Morning briefing delivered via text
-- [ ] Dashboard and SMS share same backend, same agents, same memory
+- [x] Telegram bot + webhook endpoint in FastAPI (`services/telegram_client.py`, `api/routes/telegram.py`)
+- [x] Inbound message → `orchestrator.arun()` → response via Bot API
+- [x] Approval flow over Telegram — inline-keyboard `✅ Send / ❌ Reject` buttons resume the paused run
+- [x] `/start <code>` pairing flow with single-use Redis codes
+- [x] Dashboard and Telegram share same backend, same agents, same memory
+- [ ] Morning briefing delivered via Telegram (covered by Phase 6)
 
 ## Phase 5: Expand Integrations
 
@@ -66,13 +69,13 @@ Orbit works for you in the background.
 - [ ] Daily morning briefing at 8am — calendar, overdue tasks, urgent emails
 - [ ] Midday inbox digest at noon
 - [ ] Friday weekly review at 5pm
-- [ ] Scheduled run results pushed via SMS and stored in dashboard
+- [ ] Scheduled run results pushed via Telegram and stored in dashboard
 - [ ] `automations` table: user_id, cron_expression, action_type, action_config, enabled
 
 ---
 
 ## The Vision
 
-You wake up and there's a text waiting — your calendar, overdue tasks, urgent emails, synthesized. You reply "move my 2pm to tomorrow" and it handles it. You text "draft a response to the professor email, formal tone" and get a draft with Approve/Reject. You open the web dashboard for the full picture — activity history, conversations, settings. It remembers you hate meetings before 10am, that you write casually to friends and formally to professors, that your CS 216 deadlines are priority this month. One assistant across every channel — browser, phone, text — one shared brain.
+You wake up and there's a Telegram message waiting — your calendar, overdue tasks, urgent emails, synthesized. You reply "move my 2pm to tomorrow" and it handles it. You send "draft a response to the professor email, formal tone" and get a draft with ✅ Send / ❌ Reject buttons. You open the web dashboard for the full picture — activity history, conversations, settings. It remembers you hate meetings before 10am, that you write casually to friends and formally to professors, that your CS 216 deadlines are priority this month. One assistant across every channel — browser, phone, Telegram — one shared brain.
 
 Starts with making "Check my emails" return real emails.

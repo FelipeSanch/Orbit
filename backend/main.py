@@ -13,8 +13,10 @@ from api.routes.conversations import router as conversations_router
 from api.routes.google_oauth import router as google_oauth_router
 from api.routes.memories import router as memories_router
 from api.routes.oauth import router as oauth_router
+from api.routes.telegram import router as telegram_router
 from api.routes.usage import router as usage_router
 from config import settings
+from services import telegram_client as tg_client
 from services.database import close_pool, init_pool
 
 logger = logging.getLogger(__name__)
@@ -63,6 +65,17 @@ def _init_sentry() -> None:
 async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     _init_sentry()
     await init_pool(settings.database_url)
+    # Warm the Telegram bot username cache so /pair doesn't pay the
+    # round-trip on first use. Soft-fails: any error here (token missing,
+    # network blip) is logged and the pair endpoint will lazily retry.
+    if settings.telegram_bot_token:
+        try:
+            await tg_client.get_me()
+            logger.info(
+                "Telegram bot ready as @%s", await tg_client.get_bot_username()
+            )
+        except tg_client.TelegramError as e:
+            logger.warning("Telegram get_me failed at boot: %s", e)
     yield
     await close_pool()
 
@@ -85,6 +98,7 @@ app.include_router(conversations_router)
 app.include_router(activity_router)
 app.include_router(usage_router)
 app.include_router(memories_router)
+app.include_router(telegram_router)
 
 
 @app.get("/health")
