@@ -23,13 +23,20 @@ from repositories import conversations as conv_repo
 from repositories import messages as msg_repo
 from services.agent_factory import create_team_for_user
 from services.run_resume import resume_approval
+from services.sms_safety import (
+    cap_for_segment_budget,
+    count_sms_segments,
+    normalize_phone_e164,
+)
 from services.twilio_client import send_sms
 
 logger = logging.getLogger(__name__)
 
-# Outbound length cap. Twilio segments at 160 chars (GSM-7) or 70 (UCS-2).
-# We allow up to 1000 so the agent's full reply can land in 4–6 segments.
-_MAX_REPLY_CHARS = 1000
+# Outbound segment budget. GSM-7 fits 153 chars/segment in concatenated
+# multi-segment SMS; UCS-2 fits 67. cap_for_segment_budget picks the
+# right char cap from the detected encoding so a reply full of emoji
+# doesn't quietly turn into 15 segments and burn $$$.
+_MAX_REPLY_SEGMENTS = 6
 
 _AFFIRMATIVE = {"y", "yes", "yep", "yeah", "ok", "okay", "send it", "go", "do it"}
 _NEGATIVE = {"n", "no", "nope", "cancel", "stop", "don't", "dont"}
@@ -39,9 +46,16 @@ def _today_utc() -> str:
     return datetime.now(timezone.utc).strftime("%Y-%m-%d")
 
 
-def _truncate(text: str, limit: int = _MAX_REPLY_CHARS) -> str:
+def _truncate_for_sms(text: str) -> str:
+    """Cap `text` to fit within _MAX_REPLY_SEGMENTS, encoding-aware.
+
+    The cap differs for GSM-7 vs UCS-2 because each encoding packs a
+    different number of characters per segment. A reply with one emoji
+    is UCS-2 across its entire length, so the budget shrinks accordingly.
+    """
     if not text:
         return text
+    limit = cap_for_segment_budget(text, max_segments=_MAX_REPLY_SEGMENTS)
     if len(text) <= limit:
         return text
     return text[: limit - 1].rstrip() + "…"
@@ -131,7 +145,15 @@ async def _send_and_log(
     user_id: str,
     session_id: str,
 ) -> None:
-    truncated = _truncate(reply)
+    truncated = _truncate_for_sms(reply)
+    segments, encoding = count_sms_segments(truncated)
+    logger.info(
+        "Outbound SMS: %d char, %d segment(s), encoding=%s, to=%s",
+        len(truncated),
+        segments,
+        encoding,
+        to_address,
+    )
     await _persist_assistant_msg(
         conversation_id, user_id, truncated, session_id, to_address
     )
@@ -185,6 +207,18 @@ async def handle_inbound_sms(from_address: str, body: str) -> None:
     body = (body or "").strip()
     if not body:
         return
+
+    # Twilio sends E.164 on inbound, but normalize defensively so an
+    # operator inserting a row by hand or a future ngrok tunnel test
+    # can't desync the lookup by stray whitespace / different formatting.
+    normalized_from = normalize_phone_e164(from_address) or from_address
+    if normalized_from != from_address:
+        logger.warning(
+            "Inbound SMS phone format mismatch: raw=%r normalized=%r",
+            from_address,
+            normalized_from,
+        )
+    from_address = normalized_from
 
     channel = await channels_repo.get_user_for_address("sms", from_address)
     if not channel:

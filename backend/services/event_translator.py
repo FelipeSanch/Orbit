@@ -321,12 +321,14 @@ async def translate_team_stream(
                     # We persist the team leader's run_id (the first one we
                     # saw), NOT the paused member-agent's run_id. Calling
                     # acontinue_run against a member RunOutput crashes inside
-                    # Agno 2.5 (`'RunOutput' object has no attribute 'team_id'`);
-                    # the team-level continuation is the only one Agno can
-                    # build. The downside is that the leader isn't actually
-                    # paused — Agno's resume sometimes silently restarts a
-                    # fresh run that never executes the confirmed tool. The
-                    # silent-failure detection in /api/chat/approve covers it.
+                    # Agno 2.6.x ('RunOutput' object has no attribute
+                    # 'team_id', agno/utils/events.py:255); the team-level
+                    # continuation is the only one Agno can build. The
+                    # downside is that the leader isn't actually paused —
+                    # Agno's resume sometimes silently restarts a fresh run
+                    # that never executes the confirmed tool. The silent-
+                    # failure detection in /api/chat/approve covers it.
+                    # Tracked upstream: agno-agi/agno#8029.
                     tools = getattr(event, "tools", []) or []
                     requirements = getattr(event, "requirements", []) or []
 

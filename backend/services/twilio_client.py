@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import logging
 
+from twilio.base.exceptions import TwilioRestException
 from twilio.request_validator import RequestValidator
 from twilio.rest import Client as TwilioRest
 
@@ -69,12 +70,27 @@ def validate_request(url: str, params: dict, signature: str) -> bool:
 
 
 def send_sms(to: str, body: str) -> str:
-    """Send an SMS. Returns the message SID. Raises on failure."""
+    """Send an SMS. Returns the message SID. Raises on failure.
+
+    TwilioRestException is logged with code + status + msg so we can
+    branch on it later (retry 20429 throttles, drop 21610 unsubscribed,
+    etc.). Until TFV clears we just log and re-raise — caller handles.
+    """
     client = _get_client()
-    msg = client.messages.create(
-        from_=settings.twilio_phone_number,
-        to=to,
-        body=body,
-    )
+    try:
+        msg = client.messages.create(
+            from_=settings.twilio_phone_number,
+            to=to,
+            body=body,
+        )
+    except TwilioRestException as e:
+        logger.error(
+            "Twilio send rejected: code=%s status=%s msg=%s to=%s",
+            getattr(e, "code", "?"),
+            getattr(e, "status", "?"),
+            getattr(e, "msg", str(e)),
+            to,
+        )
+        raise
     logger.info("Sent SMS to %s — sid=%s", to, msg.sid)
     return msg.sid

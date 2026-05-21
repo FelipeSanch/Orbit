@@ -41,7 +41,14 @@ async def get_user_for_address(channel_type: str, address: str) -> dict | None:
 async def upsert_verified(
     user_id: str, channel_type: str, address: str
 ) -> dict:
-    """Insert or update a channel mapping marked verified."""
+    """Insert or update a channel mapping marked verified.
+
+    Callers MUST normalize `address` before invoking — there's a
+    `(type, address)` unique index, so '+1 (555) 123-4567' and
+    '+15551234567' would collide as separate rows otherwise. For
+    SMS, use services.sms_safety.normalize_phone_e164 before this
+    call to land the canonical E.164 form.
+    """
     pool = get_pool()
     async with pool.acquire() as conn:
         row = await conn.fetchrow(
