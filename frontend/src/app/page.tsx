@@ -2101,7 +2101,6 @@ export default function LandingPage() {
       <div className={splashDone ? "animate-fade-in" : "opacity-0"}>
         <NavBar />
         <HeroSection />
-        <StackStrip />
         <DemoSection />
         <HowItWorksSection />
         <TransparencySection />
