@@ -13,7 +13,7 @@ import {
   MicrosoftIcon,
   NotionIcon,
   SlackIcon,
-  TwilioIcon,
+  TelegramIcon,
 } from "@/components/hub/integration-icons";
 import {
   IntegrationCard,
@@ -91,17 +91,20 @@ const INTEGRATIONS: IntegrationDef[] = [
     ],
   },
   {
-    id: "twilio",
-    name: "Twilio (SMS)",
+    id: "telegram",
+    name: "Telegram",
     category: "Messaging",
-    description: "Text Orbit from your phone — briefings, replies, approvals over SMS.",
+    description: "Chat with Orbit from Telegram — free text, approval buttons, /commands.",
     subItems: [
-      { label: "Inbound SMS", iconPath: ICON_PHONE },
-      { label: "Daily briefings as text", iconPath: ICON_CHAT },
+      { label: "Inbound messages", iconPath: ICON_CHAT },
+      { label: "Inline approval buttons", iconPath: ICON_CHECK },
     ],
-    icon: <TwilioIcon size={20} />,
-    iconBg: "rgba(242, 47, 70, 0.12)",
-    scopes: ["Receive SMS, reply via Orbit", "Daily briefings over text"],
+    icon: <TelegramIcon size={20} />,
+    iconBg: "rgba(34, 158, 217, 0.12)",
+    scopes: [
+      "Send and receive messages with the Orbit bot",
+      "Inline Approve / Reject buttons on write actions",
+    ],
   },
   {
     id: "gmail",
@@ -157,7 +160,7 @@ const INTEGRATIONS: IntegrationDef[] = [
   },
 ];
 
-const COMING_SOON = new Set(["twilio", "gmail", "notion", "slack", "github"]);
+const COMING_SOON = new Set(["telegram", "gmail", "notion", "slack", "github"]);
 
 export default function HubPage() {
   const session = useAuthStore((s) => s.session);

@@ -43,11 +43,10 @@ async def upsert_verified(
 ) -> dict:
     """Insert or update a channel mapping marked verified.
 
-    Callers MUST normalize `address` before invoking — there's a
-    `(type, address)` unique index, so '+1 (555) 123-4567' and
-    '+15551234567' would collide as separate rows otherwise. For
-    SMS, use services.sms_safety.normalize_phone_e164 before this
-    call to land the canonical E.164 form.
+    Callers MUST canonicalize `address` before invoking — there's a
+    `(type, address)` unique index, so two different formats of the
+    same address would collide as separate rows otherwise. For
+    Telegram, the address is a string chat_id (numeric).
     """
     pool = get_pool()
     async with pool.acquire() as conn:

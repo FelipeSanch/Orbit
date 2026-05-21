@@ -3,7 +3,13 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Settings(BaseSettings):
-    model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8")
+    model_config = SettingsConfigDict(
+        env_file=".env",
+        env_file_encoding="utf-8",
+        # Ignore unknown env vars rather than crashing — lets local .env
+        # keep leftovers from removed features without blocking boot.
+        extra="ignore",
+    )
 
     # Deployment environment ("development" or "production"). Production
     # boots fail-fast if required values are missing or still point at
@@ -46,14 +52,6 @@ class Settings(BaseSettings):
 
     # Frontend
     frontend_url: str = "http://localhost:3000"
-
-    # Twilio (SMS)
-    twilio_account_sid: str = ""
-    twilio_auth_token: str = ""
-    twilio_phone_number: str = ""
-    # Validate Twilio's webhook signature on inbound. Set false locally if
-    # using a tunneling tool that strips/modifies headers.
-    twilio_webhook_validate: bool = True
 
     # Per-user daily spend cap (USD). Checked at /api/chat entry; set to
     # 0 to disable. Default is intentionally low for a portfolio project.

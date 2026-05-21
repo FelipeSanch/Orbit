@@ -13,7 +13,6 @@ from api.routes.conversations import router as conversations_router
 from api.routes.google_oauth import router as google_oauth_router
 from api.routes.memories import router as memories_router
 from api.routes.oauth import router as oauth_router
-from api.routes.sms import router as sms_router
 from api.routes.usage import router as usage_router
 from config import settings
 from services.database import close_pool, init_pool
@@ -86,7 +85,6 @@ app.include_router(conversations_router)
 app.include_router(activity_router)
 app.include_router(usage_router)
 app.include_router(memories_router)
-app.include_router(sms_router)
 
 
 @app.get("/health")

@@ -81,14 +81,14 @@ export function GithubIcon({ size = 28 }: IconProps): ReactElement {
   );
 }
 
-export function TwilioIcon({ size = 28 }: IconProps): ReactElement {
+export function TelegramIcon({ size = 28 }: IconProps): ReactElement {
   return (
     <svg width={size} height={size} viewBox="0 0 48 48" fill="none">
-      <circle cx="24" cy="24" r="20" fill="#F22F46" />
-      <circle cx="17" cy="17" r="3.5" fill="#fff" />
-      <circle cx="31" cy="17" r="3.5" fill="#fff" />
-      <circle cx="17" cy="31" r="3.5" fill="#fff" />
-      <circle cx="31" cy="31" r="3.5" fill="#fff" />
+      <circle cx="24" cy="24" r="20" fill="#229ED9" />
+      <path
+        d="M13 24l18-7-3 16-6-3-3 3-1-6 11-9-13 6z"
+        fill="#fff"
+      />
     </svg>
   );
 }
