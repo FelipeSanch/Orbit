@@ -269,7 +269,7 @@ function SettingsContent() {
               Usage today
             </h2>
             <p className="mt-1 text-[12px] text-muted-foreground">
-              Tokens consumed by Orbit since midnight UTC
+              What Orbit has done for you since midnight UTC
             </p>
 
             <div className="mt-4 grid grid-cols-2 gap-2.5 sm:grid-cols-4">
@@ -309,19 +309,16 @@ function SettingsContent() {
               </div>
               <div className="flex items-center justify-between">
                 <span className="text-[12px] text-muted-foreground">
-                  Backend
+                  Source
                 </span>
-                <span className="text-[12px] font-mono text-muted-foreground">
-                  FastAPI + Agno
-                </span>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-[12px] text-muted-foreground">
-                  Model
-                </span>
-                <span className="text-[12px] font-mono text-muted-foreground">
-                  Claude Sonnet 4.6
-                </span>
+                <a
+                  href="https://github.com/FelipeSanch/Orbit"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-[12px] text-accent transition-colors hover:underline"
+                >
+                  GitHub ↗
+                </a>
               </div>
             </div>
           </div>

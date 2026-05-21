@@ -18,7 +18,7 @@ export default function ActivityPage() {
   return (
     <div className="flex h-full min-h-0 flex-1 flex-col">
       <div className="flex h-14 items-center justify-between border-b border-border px-6">
-        <h1 className="text-sm font-semibold text-foreground">Activity Log</h1>
+        <h1 className="text-sm font-semibold text-foreground">Activity</h1>
         {activities.length > 0 && (
           <button
             onClick={clearActivities}
@@ -31,19 +31,19 @@ export default function ActivityPage() {
 
       {/* Stats bar */}
       {activities.length > 0 && (
-        <div className="flex gap-4 border-b border-border px-6 py-3">
+        <div className="flex flex-wrap gap-x-4 gap-y-2 border-b border-border px-6 py-3">
           <div className="flex items-center gap-2">
             <div className="h-2 w-2 rounded-full bg-blue-500" />
             <span className="text-[12px] text-muted-foreground">
               <span className="font-semibold text-foreground">{toolCalls}</span>{" "}
-              tool calls
+              {toolCalls === 1 ? "action" : "actions"}
             </span>
           </div>
           <div className="flex items-center gap-2">
             <div className="h-2 w-2 rounded-full bg-amber-500" />
             <span className="text-[12px] text-muted-foreground">
               <span className="font-semibold text-foreground">{approvals}</span>{" "}
-              approvals
+              {approvals === 1 ? "approval" : "approvals"}
             </span>
           </div>
           <div className="flex items-center gap-2">
@@ -52,7 +52,7 @@ export default function ActivityPage() {
               <span className="font-semibold text-foreground">
                 {delegations}
               </span>{" "}
-              delegations
+              {delegations === 1 ? "hand-off" : "hand-offs"}
             </span>
           </div>
         </div>
