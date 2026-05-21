@@ -170,3 +170,51 @@ body {
     animation: none;
   }
 }
+
+/* ─── Login backdrop animations ──────────────────────────────────── */
+
+/* Background mesh drift — soft accent/violet blobs that slowly migrate
+   diagonally, giving the canvas a "living atmosphere" feel without any
+   focal motion. 60s loop so the eye never tracks it. */
+@keyframes login-bg-drift {
+  0%, 100% { background-position: 0% 0%, 100% 100%; }
+  50%      { background-position: 30% 20%, 70% 80%; }
+}
+
+.login-bg-drift {
+  background-image:
+    radial-gradient(40rem 30rem at 20% 30%, color-mix(in oklab, var(--accent) 22%, transparent), transparent 70%),
+    radial-gradient(36rem 28rem at 80% 70%, color-mix(in oklab, var(--accent) 14%, transparent), transparent 75%);
+  background-repeat: no-repeat;
+  background-size: 160% 160%, 160% 160%;
+  animation: login-bg-drift 60s ease-in-out infinite;
+}
+
+/* Slow orbital rotation. Three distinct durations + directions so the
+   rings stay phase-incoherent (no eye-catching beat). */
+@keyframes login-orbit-cw  { from { transform: rotate(0deg);   } to { transform: rotate(360deg);  } }
+@keyframes login-orbit-ccw { from { transform: rotate(360deg); } to { transform: rotate(0deg);    } }
+
+.login-orbit-1 { animation: login-orbit-cw  80s linear infinite; transform-origin: 50% 50%; }
+.login-orbit-2 { animation: login-orbit-ccw 110s linear infinite; transform-origin: 50% 50%; }
+.login-orbit-3 { animation: login-orbit-cw  140s linear infinite; transform-origin: 50% 50%; }
+
+/* Tiny pulsing stars. Stagger via inline animation-delay. */
+@keyframes login-star-pulse {
+  0%, 100% { opacity: 0.25; transform: scale(1);   }
+  50%      { opacity: 1;    transform: scale(1.4); }
+}
+
+.login-star {
+  animation: login-star-pulse 4s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .login-bg-drift,
+  .login-orbit-1,
+  .login-orbit-2,
+  .login-orbit-3,
+  .login-star {
+    animation: none;
+  }
+}
