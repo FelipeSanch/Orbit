@@ -574,6 +574,15 @@ function HeroSection() {
 }
 // ─── Scroll-hijacked demo showcase ────────────────────────────────────
 
+// Mini activity-feed rows that appear alongside each demo's chat —
+// pulled from the same event-type vocabulary the real dashboard uses.
+type DemoActivity = {
+  icon: "delegate" | "tool" | "result" | "approve";
+  title: string;
+  subtitle: string;
+  tone: "default" | "approve" | "success";
+};
+
 const demos = [
   {
     label: "Mail",
@@ -581,6 +590,12 @@ const demos = [
     title: "Triage your inbox",
     description:
       "Search, summarize, and act on Outlook mail without switching apps.",
+    activity: [
+      { icon: "delegate", title: "Email-Agent", subtitle: "Delegated", tone: "default" },
+      { icon: "tool", title: "Search Emails", subtitle: "Executing", tone: "default" },
+      { icon: "result", title: "Result Received", subtitle: "2 urgent found", tone: "success" },
+      { icon: "approve", title: "Approval Needed", subtitle: "reply_to_email", tone: "approve" },
+    ] satisfies DemoActivity[],
     messages: [
       { role: "user" as const, text: "Any urgent emails today?" },
       {
@@ -672,6 +687,13 @@ const demos = [
     title: "Own your schedule",
     description:
       "Check availability, create events, and resolve conflicts in natural language.",
+    activity: [
+      { icon: "delegate", title: "Calendar-Agent", subtitle: "Delegated", tone: "default" },
+      { icon: "tool", title: "List Events", subtitle: "Executing", tone: "default" },
+      { icon: "result", title: "Result Received", subtitle: "3 events tomorrow", tone: "success" },
+      { icon: "approve", title: "Approval Needed", subtitle: "create_event", tone: "approve" },
+      { icon: "result", title: "Event Created", subtitle: "invite dispatched", tone: "success" },
+    ] satisfies DemoActivity[],
     messages: [
       { role: "user" as const, text: "What does tomorrow look like?" },
       {
@@ -776,6 +798,13 @@ const demos = [
     title: "Stay on track",
     description:
       "Create, complete, and organize tasks in Microsoft To Do from the chat.",
+    activity: [
+      { icon: "delegate", title: "Tasks-Agent", subtitle: "Delegated", tone: "default" },
+      { icon: "tool", title: "List Tasks", subtitle: "Executing", tone: "default" },
+      { icon: "result", title: "Result Received", subtitle: "3 due this week", tone: "success" },
+      { icon: "approve", title: "Approval Needed", subtitle: "complete_task", tone: "approve" },
+      { icon: "result", title: "Task Completed", subtitle: "1 marked done", tone: "success" },
+    ] satisfies DemoActivity[],
     messages: [
       { role: "user" as const, text: "What's due this week?" },
       {
@@ -903,6 +932,78 @@ function AssistantBubble({ children }: { children: ReactNode }) {
   );
 }
 
+function DemoActivityIcon({ kind }: { kind: DemoActivity["icon"] }) {
+  const paths: Record<DemoActivity["icon"], string> = {
+    delegate: "M12 4.5v15m7.5-7.5h-15",
+    tool: "M10.5 6L4 12.5 10.5 19M13.5 6L20 12.5 13.5 19",
+    result: "M4.5 12.75l6 6 9-13.5",
+    approve:
+      "M12 9v3.75m9-.75a9 9 0 11-18 0 9 9 0 0118 0zm-9 3.75h.008v.008H12v-.008z",
+  };
+  return (
+    <svg
+      className="h-3 w-3"
+      fill="none"
+      viewBox="0 0 24 24"
+      stroke="currentColor"
+      strokeWidth={1.75}
+    >
+      <path strokeLinecap="round" strokeLinejoin="round" d={paths[kind]} />
+    </svg>
+  );
+}
+
+function DemoActivityFeed({ items }: { items: DemoActivity[] }) {
+  return (
+    <div className="flex h-full flex-col">
+      <div className="flex items-center justify-between border-b border-border/60 px-3 py-2.5">
+        <span className="text-[10px] font-medium text-muted-foreground">
+          Activity
+        </span>
+        <span className="font-mono text-[9px] text-muted-foreground/60">
+          {items.length}
+        </span>
+      </div>
+      <div className="flex flex-col gap-0 overflow-hidden px-2 py-2">
+        {items.map((row, i) => {
+          const tone =
+            row.tone === "approve"
+              ? "text-amber-300"
+              : row.tone === "success"
+                ? "text-emerald-400"
+                : "text-accent";
+          const bg =
+            row.tone === "approve"
+              ? "bg-amber-300/10"
+              : row.tone === "success"
+                ? "bg-emerald-400/10"
+                : "bg-accent/10";
+          return (
+            <div
+              key={`${row.title}-${i}`}
+              className="flex items-center gap-2 py-1.5"
+            >
+              <div
+                className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-md ${bg} ${tone}`}
+              >
+                <DemoActivityIcon kind={row.icon} />
+              </div>
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-[10px] font-medium text-foreground">
+                  {row.title}
+                </p>
+                <p className="truncate text-[9px] text-muted-foreground">
+                  {row.subtitle}
+                </p>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 function DemoSection() {
   const containerRef = useRef<HTMLDivElement>(null);
   const [activeIndex, setActiveIndex] = useState(0);
@@ -1003,73 +1104,109 @@ function DemoSection() {
             </div>
           </div>
 
-          {/* Right — chat window */}
+          {/* Right — Orbit dashboard window (chat + activity panel) */}
           <div className="relative flex items-center justify-center">
-            <div className="w-full max-w-xl overflow-hidden rounded-2xl border border-border shadow-2xl shadow-black/20">
-              {/* macOS window chrome */}
-              <div className="flex items-center gap-2 border-b border-border px-4 py-3">
-                <div className="flex items-center gap-1.5">
-                  <div className="h-3 w-3 rounded-full bg-[#ff5f57]" />
-                  <div className="h-3 w-3 rounded-full bg-[#febc2e]" />
-                  <div className="h-3 w-3 rounded-full bg-[#28c840]" />
-                </div>
-                <div className="flex-1 text-center">
-                  <span className="font-mono text-[11px] text-muted-foreground">
-                    orbit
+            <div className="w-full max-w-2xl overflow-hidden rounded-2xl border border-border bg-surface shadow-2xl shadow-black/30">
+              {/* App chrome — Orbit-branded, not generic macOS */}
+              <div className="flex items-center justify-between border-b border-border px-4 py-2.5">
+                <div className="flex items-center gap-2">
+                  <OrbitLogo size={14} />
+                  <span className="text-[11px] font-semibold text-foreground">
+                    Orbit
+                  </span>
+                  <span className="text-border">·</span>
+                  <span className="text-[11px] text-muted-foreground">
+                    Chat
                   </span>
                 </div>
-                <div className="w-[54px]" />
+                <div className="flex items-center gap-1.5 rounded-md bg-emerald-400/10 px-2 py-0.5">
+                  <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
+                  <span className="text-[9px] font-medium text-emerald-400">
+                    Connected
+                  </span>
+                </div>
               </div>
 
-              {/* Chat content — crossfade */}
-              <div className="relative h-[500px]">
-                {demos.map((demo, i) => (
-                  <div
-                    key={demo.tag}
-                    className="absolute inset-0 flex flex-col justify-center gap-4 overflow-hidden p-5 transition-all duration-500"
-                    style={{
-                      opacity: i === activeIndex ? 1 : 0,
-                      transform:
-                        i === activeIndex
-                          ? "translateY(0)"
-                          : i > activeIndex
-                            ? "translateY(12px)"
-                            : "translateY(-12px)",
-                      pointerEvents: i === activeIndex ? "auto" : "none",
-                    }}
-                  >
-                    {demo.messages.map((msg, j) =>
-                      msg.role === "user" ? (
-                        <UserBubble key={j} text={msg.text!} />
-                      ) : (
-                        <AssistantBubble key={j}>
-                          {msg.content}
-                        </AssistantBubble>
-                      ),
-                    )}
+              {/* Body — chat (left) + activity feed (right) */}
+              <div className="relative grid h-[460px] grid-cols-[1fr_180px]">
+                {/* Chat column — crossfade between demos */}
+                <div className="relative border-r border-border/60">
+                  {demos.map((demo, i) => (
+                    <div
+                      key={demo.tag}
+                      className="absolute inset-0 flex flex-col justify-center gap-3 overflow-hidden p-4 transition-all duration-500"
+                      style={{
+                        opacity: i === activeIndex ? 1 : 0,
+                        transform:
+                          i === activeIndex
+                            ? "translateY(0)"
+                            : i > activeIndex
+                              ? "translateY(12px)"
+                              : "translateY(-12px)",
+                        pointerEvents: i === activeIndex ? "auto" : "none",
+                      }}
+                    >
+                      {demo.messages.map((msg, j) =>
+                        msg.role === "user" ? (
+                          <UserBubble key={j} text={msg.text!} />
+                        ) : (
+                          <AssistantBubble key={j}>
+                            {msg.content}
+                          </AssistantBubble>
+                        ),
+                      )}
+                    </div>
+                  ))}
+                </div>
+
+                {/* Activity column — also crossfades per demo */}
+                <div className="relative bg-surface-raised/40">
+                  {demos.map((demo, i) => (
+                    <div
+                      key={demo.tag}
+                      className="absolute inset-0 transition-all duration-500"
+                      style={{
+                        opacity: i === activeIndex ? 1 : 0,
+                        pointerEvents: i === activeIndex ? "auto" : "none",
+                      }}
+                    >
+                      <DemoActivityFeed items={demo.activity} />
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Input bar — split to match the chat-only width */}
+              <div className="grid grid-cols-[1fr_180px] border-t border-border">
+                <div className="px-4 py-3">
+                  <div className="flex items-center gap-2 rounded-xl border border-border/50 bg-muted/30 px-3 py-2">
+                    <span className="flex-1 text-[12px] text-muted-foreground/50">
+                      Message Orbit...
+                    </span>
+                    <svg
+                      className="h-4 w-4 text-muted-foreground/30"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      stroke="currentColor"
+                      strokeWidth={1.5}
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        d="M6 12L3.269 3.126A59.768 59.768 0 0121.485 12 59.77 59.77 0 013.27 20.876L5.999 12zm0 0h7.5"
+                      />
+                    </svg>
                   </div>
-                ))}
-              </div>
-
-              {/* Input bar */}
-              <div className="border-t border-border px-4 py-3">
-                <div className="flex items-center gap-2 rounded-xl border border-border/50 bg-muted/30 px-3 py-2">
-                  <span className="flex-1 text-[12px] text-muted-foreground/50">
-                    Message Orbit...
-                  </span>
-                  <svg
-                    className="h-4 w-4 text-muted-foreground/30"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                    stroke="currentColor"
-                    strokeWidth={1.5}
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      d="M6 12L3.269 3.126A59.768 59.768 0 0121.485 12 59.77 59.77 0 013.27 20.876L5.999 12zm0 0h7.5"
-                    />
-                  </svg>
+                </div>
+                <div className="border-l border-border/60 px-3 py-3">
+                  <div className="flex items-center gap-1.5 text-[9px] text-muted-foreground">
+                    <span className="h-1 w-1 rounded-full bg-accent" />
+                    <span>Microsoft 365</span>
+                  </div>
+                  <div className="mt-1 flex items-center gap-1.5 text-[9px] text-muted-foreground">
+                    <span className="h-1 w-1 rounded-full bg-accent" />
+                    <span>Google Calendar</span>
+                  </div>
                 </div>
               </div>
             </div>
@@ -1089,7 +1226,8 @@ function StepIllustrationConnect() {
       <div className="border-b border-border px-4 py-2.5">
         <span className="text-[11px] font-medium text-muted-foreground">Settings / Integrations</span>
       </div>
-      <div className="p-4">
+      <div className="space-y-2 p-4">
+        {/* Microsoft 365 — connected */}
         <div className="flex items-center gap-3 rounded-lg border border-border p-3">
           <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-[#00a4ef]/10">
             <svg className="h-5 w-5 text-[#00a4ef]" viewBox="0 0 23 23" fill="currentColor">
@@ -1098,12 +1236,30 @@ function StepIllustrationConnect() {
           </div>
           <div className="flex-1">
             <p className="text-[12px] font-medium text-foreground">Microsoft 365</p>
-            <p className="text-[10px] text-muted-foreground">Mail, Calendar, and To Do</p>
+            <p className="text-[10px] text-muted-foreground">Mail, Calendar, To Do</p>
+          </div>
+          <div className="flex items-center gap-1.5 rounded-md bg-emerald-400/10 px-2 py-1">
+            <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
+            <span className="text-[10px] font-medium text-emerald-400">Connected</span>
+          </div>
+        </div>
+
+        {/* Google Calendar — connect CTA */}
+        <div className="flex items-center gap-3 rounded-lg border border-border p-3">
+          <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-[#4285f4]/10">
+            <svg className="h-5 w-5" viewBox="0 0 24 24">
+              <path fill="#4285f4" d="M19 4h-2V2h-2v2H9V2H7v2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 16H5V10h14v10zm0-12H5V6h14v2z" />
+            </svg>
+          </div>
+          <div className="flex-1">
+            <p className="text-[12px] font-medium text-foreground">Google Calendar</p>
+            <p className="text-[10px] text-muted-foreground">Optional · calendar-only scope</p>
           </div>
           <div className="rounded-lg bg-accent px-3 py-1.5 text-[10px] font-medium text-accent-foreground">
             Connect
           </div>
         </div>
+
         <div className="mt-3 flex items-center gap-2 text-[10px] text-muted-foreground">
           <svg className="h-3 w-3 text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
             <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75m-3-7.036A11.959 11.959 0 013.598 6 11.99 11.99 0 003 9.749c0 5.592 3.824 10.29 9 11.623 5.176-1.332 9-6.03 9-11.622 0-1.31-.21-2.571-.598-3.751h-.152c-3.196 0-6.1-1.248-8.25-3.285z" />
@@ -1299,14 +1455,14 @@ function HowItWorksSection() {
       number: "02",
       title: "Ask in plain English",
       description:
-        "No commands to memorize. Type naturally and Orbit understands context, handles ambiguity, and routes to the right service automatically.",
+        "No commands to memorize. A team-leader agent reads your request, routes to the right specialist — mail, calendar, or tasks — and streams the work back to you in real time.",
       illustration: <StepIllustrationChat />,
     },
     {
       number: "03",
       title: "Approve before it acts",
       description:
-        "Every write action pauses for your confirmation. Send an email, create an event, complete a task. Nothing happens without your explicit approval.",
+        "Every write tool pauses for your confirmation. The success indicator only flips green when Microsoft Graph actually executed — not when the approval endpoint returned 200.",
       illustration: <StepIllustrationApprove />,
     },
   ];
