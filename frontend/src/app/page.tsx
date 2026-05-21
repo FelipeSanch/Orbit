@@ -1340,6 +1340,278 @@ function HowItWorksSection() {
   );
 }
 
+// ─── Transparency / Activity feed showcase ───────────────────────────
+
+// Lifecycle of a real Orbit request, in the order the activity feed
+// actually emits it. Each row appears sequentially when the section
+// scrolls into view; the whole strip pauses, fades, then loops.
+type ActivityRow = {
+  icon: "delegate" | "tool" | "result" | "approve" | "send";
+  title: string;
+  subtitle: string;
+  tone: "default" | "approve" | "success";
+};
+
+const _ACTIVITY_LIFECYCLE: ActivityRow[] = [
+  {
+    icon: "delegate",
+    title: "Email-Agent",
+    subtitle: "Delegated",
+    tone: "default",
+  },
+  {
+    icon: "tool",
+    title: "Search Emails",
+    subtitle: "Executing",
+    tone: "default",
+  },
+  {
+    icon: "result",
+    title: "Result Received",
+    subtitle: "Tool completed",
+    tone: "success",
+  },
+  {
+    icon: "approve",
+    title: "Approval Needed",
+    subtitle: "send email",
+    tone: "approve",
+  },
+  {
+    icon: "approve",
+    title: "Approved",
+    subtitle: "Action confirmed",
+    tone: "success",
+  },
+  {
+    icon: "send",
+    title: "Send Email",
+    subtitle: "Executing",
+    tone: "default",
+  },
+  {
+    icon: "result",
+    title: "Result Received",
+    subtitle: "Tool completed",
+    tone: "success",
+  },
+];
+
+function ActivityIcon({ kind }: { kind: ActivityRow["icon"] }) {
+  // Match the icon style used in the actual product dashboard so the
+  // mockup feels like a screenshot rather than a marketing illustration.
+  const paths: Record<ActivityRow["icon"], string> = {
+    delegate:
+      "M12 4.5v15m7.5-7.5h-15", // plus-style: agent fanout
+    tool:
+      "M10.5 6L4 12.5 10.5 19M13.5 6L20 12.5 13.5 19", // chevron pair
+    result:
+      "M4.5 12.75l6 6 9-13.5", // checkmark
+    approve:
+      "M12 9v3.75m9-.75a9 9 0 11-18 0 9 9 0 0118 0zm-9 3.75h.008v.008H12v-.008z",
+    send:
+      "M6 12L3.269 3.125A59.769 59.769 0 0121.485 12 59.768 59.768 0 013.27 20.875L5.999 12zm0 0h7.5",
+  };
+  return (
+    <svg
+      className="h-3.5 w-3.5"
+      fill="none"
+      viewBox="0 0 24 24"
+      stroke="currentColor"
+      strokeWidth={1.75}
+    >
+      <path strokeLinecap="round" strokeLinejoin="round" d={paths[kind]} />
+    </svg>
+  );
+}
+
+function ActivityFeedMockup() {
+  const [revealed, setRevealed] = useState(0);
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el) return;
+
+    let cancel: number | undefined;
+    let timeouts: number[] = [];
+
+    const startLoop = () => {
+      // Reveal each row 600ms apart; hold for 2.5s when complete; reset.
+      setRevealed(0);
+      _ACTIVITY_LIFECYCLE.forEach((_, i) => {
+        timeouts.push(
+          window.setTimeout(() => setRevealed(i + 1), 350 + i * 550),
+        );
+      });
+      const total = 350 + _ACTIVITY_LIFECYCLE.length * 550 + 2800;
+      cancel = window.setTimeout(startLoop, total);
+    };
+
+    const obs = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting) startLoop();
+        else {
+          timeouts.forEach(clearTimeout);
+          timeouts = [];
+          if (cancel !== undefined) clearTimeout(cancel);
+        }
+      },
+      { threshold: 0.35 },
+    );
+    obs.observe(el);
+    return () => {
+      obs.disconnect();
+      timeouts.forEach(clearTimeout);
+      if (cancel !== undefined) clearTimeout(cancel);
+    };
+  }, []);
+
+  return (
+    <div
+      ref={containerRef}
+      className="overflow-hidden rounded-2xl border border-border bg-surface shadow-xl shadow-black/30"
+    >
+      {/* macOS-style header to match the existing chat mockups */}
+      <div className="flex items-center justify-between border-b border-border/60 px-4 py-2.5">
+        <div className="flex items-center gap-1.5">
+          <span className="h-2.5 w-2.5 rounded-full bg-rose-400/70" />
+          <span className="h-2.5 w-2.5 rounded-full bg-amber-300/70" />
+          <span className="h-2.5 w-2.5 rounded-full bg-emerald-400/70" />
+        </div>
+        <span className="font-mono text-[10px] tracking-widest text-muted-foreground/70 uppercase">
+          Activity
+        </span>
+        <span className="text-[10px] text-muted-foreground/60">
+          {revealed}
+        </span>
+      </div>
+
+      <div className="flex flex-col gap-0 p-4 sm:p-5">
+        {_ACTIVITY_LIFECYCLE.map((row, i) => {
+          const visible = i < revealed;
+          const toneClass =
+            row.tone === "approve"
+              ? "text-amber-300"
+              : row.tone === "success"
+                ? "text-emerald-400"
+                : "text-accent";
+          const bgClass =
+            row.tone === "approve"
+              ? "bg-amber-300/10"
+              : row.tone === "success"
+                ? "bg-emerald-400/10"
+                : "bg-accent/10";
+          return (
+            <div
+              key={`${row.title}-${i}`}
+              className="flex items-center gap-3 py-2"
+              style={{
+                opacity: visible ? 1 : 0,
+                transform: visible ? "translateY(0)" : "translateY(6px)",
+                transition:
+                  "opacity 0.45s cubic-bezier(0.22,1,0.36,1), transform 0.45s cubic-bezier(0.22,1,0.36,1)",
+              }}
+            >
+              <div
+                className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-lg ${bgClass} ${toneClass}`}
+              >
+                <ActivityIcon kind={row.icon} />
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="truncate text-[12.5px] font-medium text-foreground">
+                  {row.title}
+                </p>
+                <p className="truncate text-[11px] text-muted-foreground">
+                  {row.subtitle}
+                </p>
+              </div>
+              <span className="font-mono text-[10px] text-muted-foreground/60">
+                {`${12 + Math.floor(i / 2)}:0${i}`}
+              </span>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+function TransparencySection() {
+  return (
+    <section className="px-6 py-32">
+      <div className="mx-auto grid max-w-6xl items-center gap-16 lg:grid-cols-2">
+        <Reveal>
+          <p className="font-mono text-xs tracking-widest text-accent uppercase">
+            Transparency
+          </p>
+          <h2 className="mt-4 text-3xl font-bold tracking-tight sm:text-5xl">
+            See exactly
+            <br />
+            <span className="landing-gradient-text bg-gradient-to-r from-accent via-indigo-400 to-accent bg-clip-text text-transparent">
+              what it&apos;s doing
+            </span>
+          </h2>
+          <p className="mt-6 max-w-lg text-base leading-relaxed text-muted-foreground">
+            Every tool call, every agent delegation, every approval — Orbit
+            streams it live to a dashboard next to your chat. No black box.
+            If you ever wonder &ldquo;what did it actually do?&rdquo; the answer
+            is already on screen.
+          </p>
+
+          <ul className="mt-8 space-y-3 text-sm">
+            {[
+              {
+                accent: "text-accent",
+                label: "Tool calls",
+                detail: "see the exact tool, args, and result",
+              },
+              {
+                accent: "text-amber-300",
+                label: "Approval gates",
+                detail: "pause for confirmation on every write",
+              },
+              {
+                accent: "text-emerald-400",
+                label: "Real results",
+                detail: "the green check comes from Microsoft Graph, not a 200 OK",
+              },
+            ].map((row) => (
+              <li
+                key={row.label}
+                className="flex items-start gap-3 text-muted-foreground"
+              >
+                <span
+                  className={`mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full ${row.accent.replace("text-", "bg-")}`}
+                />
+                <span>
+                  <span className={`font-medium ${row.accent}`}>{row.label}</span>{" "}
+                  — {row.detail}
+                </span>
+              </li>
+            ))}
+          </ul>
+        </Reveal>
+
+        <Reveal delay={0.15}>
+          <div className="relative">
+            {/* Soft glow */}
+            <div
+              aria-hidden
+              className="absolute -inset-4 -z-10 rounded-3xl opacity-40 blur-3xl"
+              style={{
+                background:
+                  "radial-gradient(ellipse at center, var(--accent) 0%, transparent 65%)",
+              }}
+            />
+            <ActivityFeedMockup />
+          </div>
+        </Reveal>
+      </div>
+    </section>
+  );
+}
+
 // ─── Trust & Security ─────────────────────────────────────────────────
 
 function TrustSection() {
@@ -1506,6 +1778,7 @@ export default function LandingPage() {
         <HeroSection />
         <DemoSection />
         <HowItWorksSection />
+        <TransparencySection />
         <TrustSection />
         <CTASection />
         <Footer />
