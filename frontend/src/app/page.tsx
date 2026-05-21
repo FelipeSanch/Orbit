@@ -532,8 +532,40 @@ function HeroSection() {
 
       {/* Center content */}
       <div className="relative z-10 flex max-w-3xl flex-col items-center gap-8 text-center">
+        {/* Status pill — Linear / Vercel pattern, signals living project */}
+        <a
+          href="https://github.com/FelipeSanch/Orbit"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="landing-hero-stagger group flex items-center gap-2 rounded-full border border-border/60 bg-surface/60 px-3 py-1 text-[11px] font-medium text-muted-foreground backdrop-blur-md transition-all hover:border-accent/40 hover:text-foreground"
+          style={{ animationDelay: "0.1s" }}
+        >
+          <span className="relative flex h-1.5 w-1.5">
+            <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-60" />
+            <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-emerald-400" />
+          </span>
+          <span className="font-mono text-[10px] tracking-wider uppercase text-accent">
+            v0.1
+          </span>
+          <span className="text-border">·</span>
+          <span>Live build, source on GitHub</span>
+          <svg
+            className="h-3 w-3 text-muted-foreground/60 transition-transform group-hover:translate-x-0.5"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+            strokeWidth={2}
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              d="M17 8l4 4m0 0l-4 4m4-4H3"
+            />
+          </svg>
+        </a>
+
         <h1
-          className="landing-hero-stagger text-5xl leading-[1.08] font-bold tracking-tight sm:text-7xl"
+          className="landing-hero-stagger text-5xl leading-[1.05] font-bold tracking-tight sm:text-7xl"
           style={{ animationDelay: "0.25s" }}
         >
           One chat for
@@ -547,31 +579,71 @@ function HeroSection() {
           className="landing-hero-stagger max-w-lg text-lg leading-relaxed text-muted-foreground"
           style={{ animationDelay: "0.4s" }}
         >
-          Orbit connects your email, calendar, and tasks through one AI
-          assistant. Ask questions, take action, stay in flow.
+          A personal AI assistant for Outlook, Calendar, and Tasks. Real
+          tool calls, live activity feed, approval before any write.
         </p>
 
         <div
-          className="landing-hero-stagger flex items-center gap-4"
+          className="landing-hero-stagger flex items-center gap-3"
           style={{ animationDelay: "0.55s" }}
         >
           <Link
             href="/login"
-            className="rounded-xl bg-accent px-7 py-3.5 text-sm font-medium text-accent-foreground shadow-lg shadow-accent/25 transition-all hover:shadow-xl hover:shadow-accent/30"
+            className="rounded-xl bg-accent px-6 py-3 text-sm font-medium text-accent-foreground shadow-lg shadow-accent/25 transition-all hover:shadow-xl hover:shadow-accent/30"
           >
             Get Started
           </Link>
           <a
             href="#demo"
-            className="rounded-xl border border-border px-7 py-3.5 text-sm font-medium text-foreground transition-all hover:border-accent/30 hover:bg-accent/5"
+            className="rounded-xl px-5 py-3 text-sm font-medium text-muted-foreground transition-all hover:text-foreground"
           >
-            See How It Works
+            See how it works →
           </a>
         </div>
       </div>
     </section>
   );
 }
+// ─── Tech stack strip — "Built on" ────────────────────────────────────
+
+const STACK = [
+  { label: "Claude Sonnet 4.6", sub: "Anthropic" },
+  { label: "Agno", sub: "Multi-agent" },
+  { label: "FastAPI", sub: "Python" },
+  { label: "Next.js 16", sub: "App Router" },
+  { label: "Neon", sub: "Postgres" },
+  { label: "Upstash", sub: "Redis" },
+];
+
+function StackStrip() {
+  return (
+    <section className="border-y border-border/40 bg-surface/30 py-10 backdrop-blur-sm">
+      <div className="mx-auto max-w-7xl px-6">
+        <div className="flex flex-col items-center gap-6 sm:flex-row sm:gap-12">
+          <p className="font-mono text-[10px] tracking-[0.2em] text-muted-foreground/60 uppercase">
+            Built on
+          </p>
+          <div className="flex flex-1 flex-wrap items-center justify-center gap-x-8 gap-y-4 sm:justify-between">
+            {STACK.map((item) => (
+              <div
+                key={item.label}
+                className="group flex flex-col items-center text-center transition-all sm:flex-row sm:gap-2 sm:text-left"
+              >
+                <span className="text-sm font-medium text-foreground/80 transition-colors group-hover:text-foreground">
+                  {item.label}
+                </span>
+                <span className="font-mono text-[10px] tracking-wider text-muted-foreground/50 uppercase">
+                  {item.sub}
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}
+
 // ─── Scroll-hijacked demo showcase ────────────────────────────────────
 
 // Mini activity-feed rows that appear alongside each demo's chat —
@@ -1884,23 +1956,120 @@ function CTASection() {
 
 function Footer() {
   return (
-    <footer className="border-t border-border px-6 py-10">
-      <div className="mx-auto flex max-w-5xl flex-col items-center justify-between gap-6 sm:flex-row">
-        <div className="flex items-center gap-2.5">
-          <OrbitLogo size={20} />
-          <span className="text-sm font-medium text-muted-foreground">
-            Orbit
-          </span>
+    <footer className="border-t border-border bg-surface/20 px-6 pt-16 pb-10">
+      <div className="mx-auto max-w-6xl">
+        <div className="grid grid-cols-1 gap-12 sm:grid-cols-2 lg:grid-cols-[2fr_1fr_1fr_1fr]">
+          {/* Brand column */}
+          <div className="flex flex-col gap-4">
+            <div className="flex items-center gap-2.5">
+              <OrbitLogo size={22} />
+              <span className="text-sm font-semibold text-foreground">
+                Orbit
+              </span>
+            </div>
+            <p className="max-w-xs text-[13px] leading-relaxed text-muted-foreground">
+              A personal AI assistant that connects to your work tools and
+              shows you exactly what it does.
+            </p>
+            <div className="mt-2 flex items-center gap-3">
+              <a
+                href="https://github.com/FelipeSanch/Orbit"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex h-8 w-8 items-center justify-center rounded-lg border border-border/60 text-muted-foreground transition-colors hover:border-accent/40 hover:text-foreground"
+                aria-label="GitHub repository"
+              >
+                <svg
+                  className="h-4 w-4"
+                  fill="currentColor"
+                  viewBox="0 0 24 24"
+                  aria-hidden
+                >
+                  <path d="M12 .5C5.65.5.5 5.65.5 12c0 5.08 3.29 9.39 7.86 10.92.57.1.78-.25.78-.55v-2.02c-3.2.7-3.87-1.36-3.87-1.36-.52-1.34-1.28-1.7-1.28-1.7-1.05-.72.08-.7.08-.7 1.16.08 1.77 1.2 1.77 1.2 1.04 1.78 2.72 1.27 3.38.97.1-.75.4-1.27.74-1.56-2.55-.29-5.24-1.28-5.24-5.7 0-1.26.45-2.28 1.18-3.08-.12-.29-.51-1.46.11-3.04 0 0 .97-.31 3.18 1.18a11 11 0 015.78 0c2.21-1.5 3.17-1.18 3.17-1.18.63 1.58.24 2.75.12 3.04.74.8 1.18 1.82 1.18 3.08 0 4.43-2.7 5.41-5.26 5.69.41.36.77 1.06.77 2.14v3.17c0 .31.2.66.79.55A11.51 11.51 0 0023.5 12c0-6.35-5.15-11.5-11.5-11.5z" />
+                </svg>
+              </a>
+              <span className="font-mono text-[10px] tracking-wider text-muted-foreground/50 uppercase">
+                v0.1
+              </span>
+            </div>
+          </div>
+
+          {/* Product column */}
+          <div className="flex flex-col gap-3">
+            <p className="font-mono text-[10px] tracking-[0.2em] text-muted-foreground/60 uppercase">
+              Product
+            </p>
+            <Link
+              href="/login"
+              className="text-[13px] text-muted-foreground transition-colors hover:text-foreground"
+            >
+              Sign in
+            </Link>
+            <Link
+              href="/login"
+              className="text-[13px] text-muted-foreground transition-colors hover:text-foreground"
+            >
+              Get started
+            </Link>
+            <a
+              href="#demo"
+              className="text-[13px] text-muted-foreground transition-colors hover:text-foreground"
+            >
+              See it in action
+            </a>
+          </div>
+
+          {/* Engineering column */}
+          <div className="flex flex-col gap-3">
+            <p className="font-mono text-[10px] tracking-[0.2em] text-muted-foreground/60 uppercase">
+              Engineering
+            </p>
+            <a
+              href="https://github.com/FelipeSanch/Orbit"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-[13px] text-muted-foreground transition-colors hover:text-foreground"
+            >
+              Source on GitHub
+            </a>
+            <a
+              href="https://github.com/agno-agi/agno/issues/8029"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-[13px] text-muted-foreground transition-colors hover:text-foreground"
+            >
+              Upstream Agno issue
+            </a>
+            <span className="text-[13px] text-muted-foreground">
+              Fernet rotation script
+            </span>
+          </div>
+
+          {/* Built with */}
+          <div className="flex flex-col gap-3">
+            <p className="font-mono text-[10px] tracking-[0.2em] text-muted-foreground/60 uppercase">
+              Built with
+            </p>
+            <span className="text-[13px] text-muted-foreground">
+              Claude Sonnet 4.6
+            </span>
+            <span className="text-[13px] text-muted-foreground">
+              Agno · FastAPI
+            </span>
+            <span className="text-[13px] text-muted-foreground">
+              Next.js · Neon
+            </span>
+          </div>
         </div>
-        <div className="flex items-center gap-6 text-sm text-muted-foreground">
-          <Link
-            href="/login"
-            className="transition-colors hover:text-foreground"
-          >
-            Log in
-          </Link>
-          <span className="text-border">|</span>
-          <span>Built with Claude, Agno, and Next.js</span>
+
+        <div className="mt-12 flex flex-col items-start justify-between gap-4 border-t border-border/40 pt-6 sm:flex-row sm:items-center">
+          <p className="font-mono text-[10px] tracking-wider text-muted-foreground/60 uppercase">
+            © {new Date().getFullYear()} Orbit · Personal project by Felipe
+            Sanchez
+          </p>
+          <p className="font-mono text-[10px] tracking-wider text-muted-foreground/60">
+            Deployed on Vercel + Railway · Neon Postgres · Upstash Redis
+          </p>
         </div>
       </div>
     </footer>
@@ -1932,6 +2101,7 @@ export default function LandingPage() {
       <div className={splashDone ? "animate-fade-in" : "opacity-0"}>
         <NavBar />
         <HeroSection />
+        <StackStrip />
         <DemoSection />
         <HowItWorksSection />
         <TransparencySection />
