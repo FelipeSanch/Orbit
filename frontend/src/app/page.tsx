@@ -1573,37 +1573,192 @@ function HowItWorksSection() {
 
 // ─── Telegram peer channel showcase ──────────────────────────────────
 
-function TelegramChatMockup() {
+function PhoneFrame({ children }: { children: ReactNode }) {
+  // iPhone-style frame: thick black bezel, dynamic island, status
+  // bar, home indicator bar. Inner area renders a Telegram-style
+  // chat surface. The frame itself is a single rounded card with
+  // a near-black outline so it reads as a device, not a tile.
   return (
-    <div className="relative mx-auto w-full max-w-[340px] overflow-hidden rounded-[28px] border border-border bg-surface-raised shadow-2xl shadow-accent/10">
-      {/* Phone chrome */}
-      <div className="flex items-center justify-between border-b border-border/60 bg-surface px-4 py-3">
-        <div className="flex items-center gap-2.5">
-          <div className="flex h-8 w-8 items-center justify-center rounded-full bg-[#229ED9]/15">
-            <svg
-              className="h-4 w-4 text-[#229ED9]"
-              viewBox="0 0 24 24"
-              fill="currentColor"
-              aria-hidden
-            >
-              <path d="M22 2L2 10l7 2.5L19 5l-7 9 2.5 7L22 2z" />
-            </svg>
-          </div>
-          <div className="flex flex-col">
-            <span className="text-[12px] font-semibold leading-tight">
-              Orbit
+    <div className="relative mx-auto w-full max-w-[340px]">
+      {/* Bezel */}
+      <div className="relative overflow-hidden rounded-[42px] border-[6px] border-[#0a0a0c] bg-[#0a0a0c] shadow-2xl shadow-black/50 dark:border-[#1a1a1f] dark:bg-[#1a1a1f]">
+        {/* Inner screen */}
+        <div className="relative overflow-hidden rounded-[34px] bg-surface-raised">
+          {/* Status bar */}
+          <div className="relative flex items-center justify-between bg-surface px-6 pt-2.5 pb-1">
+            <span className="text-[11px] font-semibold tabular-nums text-foreground">
+              9:41
             </span>
-            <span className="text-[10px] leading-tight text-muted-foreground">
-              @orbit101bot
-            </span>
+            {/* Dynamic island — centered */}
+            <div className="absolute left-1/2 top-1.5 h-5 w-20 -translate-x-1/2 rounded-full bg-[#0a0a0c]" />
+            <div className="flex items-center gap-1">
+              {/* Signal */}
+              <svg
+                className="h-2.5 w-3 text-foreground"
+                viewBox="0 0 16 12"
+                fill="currentColor"
+                aria-hidden
+              >
+                <rect x="0" y="8" width="2" height="4" rx="0.5" />
+                <rect x="4" y="6" width="2" height="6" rx="0.5" />
+                <rect x="8" y="3" width="2" height="9" rx="0.5" />
+                <rect x="12" y="0" width="2" height="12" rx="0.5" />
+              </svg>
+              {/* Battery */}
+              <svg
+                className="h-2.5 w-5 text-foreground"
+                viewBox="0 0 25 12"
+                fill="none"
+                aria-hidden
+              >
+                <rect
+                  x="0.5"
+                  y="0.5"
+                  width="21"
+                  height="11"
+                  rx="2.5"
+                  stroke="currentColor"
+                  strokeOpacity="0.5"
+                />
+                <rect x="2" y="2" width="14" height="8" rx="1" fill="currentColor" />
+                <rect x="22" y="4" width="2" height="4" rx="0.5" fill="currentColor" opacity="0.5" />
+              </svg>
+            </div>
           </div>
-        </div>
-        <div className="flex items-center gap-1">
-          <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
-          <span className="text-[10px] text-muted-foreground">online</span>
+
+          {/* Bot identity bar */}
+          <div className="flex items-center justify-between border-b border-border/60 bg-surface px-4 py-2.5">
+            <div className="flex items-center gap-2.5">
+              <div className="flex h-7 w-7 items-center justify-center rounded-full bg-[#229ED9]/15">
+                <svg
+                  className="h-3.5 w-3.5 text-[#229ED9]"
+                  viewBox="0 0 24 24"
+                  fill="currentColor"
+                  aria-hidden
+                >
+                  <path d="M22 2L2 10l7 2.5L19 5l-7 9 2.5 7L22 2z" />
+                </svg>
+              </div>
+              <div className="flex flex-col">
+                <span className="text-[11px] font-semibold leading-tight">
+                  Orbit
+                </span>
+                <span className="text-[9px] leading-tight text-muted-foreground">
+                  @orbit101bot · online
+                </span>
+              </div>
+            </div>
+          </div>
+
+          {children}
+
+          {/* Home indicator */}
+          <div className="flex justify-center bg-surface py-2">
+            <div className="h-1 w-24 rounded-full bg-foreground/30" />
+          </div>
         </div>
       </div>
+    </div>
+  );
+}
 
+function PairCodeMockup() {
+  // Stage 1 — Hub modal with the pair code. Renders inside the phone
+  // frame for visual continuity, even though in real life this lives
+  // on the web Hub.
+  return (
+    <PhoneFrame>
+      <div className="flex flex-col items-center gap-4 px-5 py-8">
+        <div className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
+          Hub · Pair Telegram
+        </div>
+        <p className="text-center text-[12px] text-muted-foreground">
+          One-time code. Expires in 10 minutes.
+        </p>
+        <div className="flex gap-1.5 rounded-2xl border border-border bg-surface px-4 py-3">
+          {["4", "8", "2", "9", "1", "0"].map((d, i) => (
+            <div
+              key={i}
+              className="flex h-9 w-7 items-center justify-center rounded-md bg-accent/10 text-[18px] font-bold tabular-nums text-accent"
+            >
+              {d}
+            </div>
+          ))}
+        </div>
+        <div className="flex items-center gap-2 text-[11px] text-muted-foreground">
+          <svg className="h-3 w-3" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M22 2L2 10l7 2.5L19 5l-7 9 2.5 7L22 2z" />
+          </svg>
+          Send <span className="font-mono text-foreground">/start 482910</span>{" "}
+          to @orbit101bot
+        </div>
+        <button
+          type="button"
+          className="mt-2 flex items-center gap-2 rounded-full bg-accent px-4 py-1.5 text-[11px] font-medium text-accent-foreground shadow-md shadow-accent/30"
+        >
+          <svg className="h-3 w-3" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M22 2L2 10l7 2.5L19 5l-7 9 2.5 7L22 2z" />
+          </svg>
+          Open Telegram
+        </button>
+      </div>
+    </PhoneFrame>
+  );
+}
+
+function StartCommandMockup() {
+  // Stage 2 — Telegram chat showing the /start handshake.
+  return (
+    <PhoneFrame>
+      <div className="flex flex-col gap-2 px-3 py-4">
+        <div className="flex justify-end">
+          <div className="max-w-[80%] rounded-2xl rounded-tr-md bg-accent px-3 py-2 font-mono text-[12px] text-accent-foreground">
+            /start 482910
+          </div>
+        </div>
+        <div className="flex justify-start">
+          <div className="flex max-w-[88%] flex-col gap-1 rounded-2xl rounded-tl-md bg-muted px-3 py-2.5">
+            <div className="flex items-center gap-1.5 text-[12px] font-semibold text-emerald-500">
+              <svg
+                className="h-3 w-3"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth={3}
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  d="M5 13l4 4L19 7"
+                />
+              </svg>
+              Linked
+            </div>
+            <p className="text-[11px] text-foreground/90">
+              You can talk to me here now — try{" "}
+              <span className="font-medium">
+                &ldquo;what&apos;s on my calendar today?&rdquo;
+              </span>{" "}
+              or send /help.
+            </p>
+          </div>
+        </div>
+      </div>
+      <div className="border-t border-border/60 bg-surface px-3 py-2.5">
+        <div className="flex items-center gap-2 rounded-full bg-muted px-3 py-1.5">
+          <span className="text-[11px] text-muted-foreground/70">Message</span>
+          <span className="ml-auto text-[10px] text-muted-foreground/40">
+            ↵
+          </span>
+        </div>
+      </div>
+    </PhoneFrame>
+  );
+}
+
+function TelegramChatMockup() {
+  return (
+    <PhoneFrame>
       {/* Messages */}
       <div className="flex flex-col gap-2 px-3 py-4">
         <div className="flex justify-end">
@@ -1666,34 +1821,74 @@ function TelegramChatMockup() {
           </span>
         </div>
       </div>
-    </div>
+    </PhoneFrame>
   );
 }
 
+const TELEGRAM_STEPS = [
+  {
+    n: "1",
+    tag: "Pair",
+    title: "Open the Hub. Grab a code.",
+    copy: "Hub → Telegram → tap Pair. Orbit generates a one-time, 10-minute code unique to your account.",
+    mockup: <PairCodeMockup />,
+  },
+  {
+    n: "2",
+    tag: "Send",
+    title: "Message the bot once.",
+    copy: "Open @orbit101bot, send /start <code>. The chat binds to your account permanently — no re-auth on future messages.",
+    mockup: <StartCommandMockup />,
+  },
+  {
+    n: "3",
+    tag: "Use",
+    title: "Talk to Orbit anywhere.",
+    copy: "Same agents, same memory, same approvals — now reachable from your phone with inline ✅ / ❌ buttons on every write.",
+    mockup: <TelegramChatMockup />,
+  },
+];
+
 function TelegramSection() {
-  const steps = [
-    {
-      n: "1",
-      title: "Open the Hub",
-      copy: "Settings → Hub → Telegram. Tap Pair to generate a one-time code.",
-    },
-    {
-      n: "2",
-      title: "Message the bot",
-      copy: "Open @orbit101bot in Telegram, send /start <code>. The chat binds to your Orbit account.",
-    },
-    {
-      n: "3",
-      title: "Talk to Orbit anywhere",
-      copy: "Same agents, same memory, same approvals — now reachable from your phone with inline ✅ / ❌ buttons on every write.",
-    },
-  ];
+  // Scroll-hijacked walkthrough. Mirrors DemoSection's pattern: section
+  // is N×100vh tall, inner content sticks to the viewport, scroll
+  // progress advances activeIndex through the 3 stages.
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [activeIndex, setActiveIndex] = useState(0);
+
+  const onScroll = useCallback(() => {
+    const el = containerRef.current;
+    if (!el) return;
+    const rect = el.getBoundingClientRect();
+    const scrolled = -rect.top;
+    const total = el.offsetHeight - window.innerHeight;
+    if (total <= 0) return;
+    const progress = Math.max(0, Math.min(1, scrolled / total));
+    const idx = Math.min(
+      TELEGRAM_STEPS.length - 1,
+      Math.floor(progress * TELEGRAM_STEPS.length),
+    );
+    setActiveIndex(idx);
+  }, []);
+
+  useEffect(() => {
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => window.removeEventListener("scroll", onScroll);
+  }, [onScroll]);
+
   return (
-    <section className="border-t border-border/40 px-6 py-32">
-      <div className="mx-auto max-w-6xl">
-        <Reveal>
-          <div className="flex flex-col items-center text-center">
-            <span className="inline-flex items-center gap-1.5 rounded-full border border-accent/30 bg-accent/10 px-3 py-1 text-[11px] font-medium text-accent">
+    <section
+      ref={containerRef}
+      className="border-t border-border/40"
+      style={{
+        height: `${(TELEGRAM_STEPS.length + 1) * 100}vh`,
+      }}
+    >
+      <div className="sticky top-0 flex h-screen items-center pt-16">
+        <div className="mx-auto grid w-full max-w-6xl items-center gap-12 px-6 md:grid-cols-[1fr_1.1fr] md:gap-16">
+          {/* Left — step labels (crossfade through them) */}
+          <div className="flex flex-col justify-center">
+            <span className="inline-flex w-fit items-center gap-1.5 rounded-full border border-accent/30 bg-accent/10 px-3 py-1 text-[11px] font-medium text-accent">
               <svg
                 className="h-3 w-3"
                 viewBox="0 0 24 24"
@@ -1707,52 +1902,101 @@ function TelegramSection() {
             <h2 className="mt-4 text-3xl font-bold tracking-tight sm:text-5xl">
               Carry Orbit in your pocket
             </h2>
-            <p className="mt-4 max-w-2xl text-base text-muted-foreground sm:text-lg">
-              Pair your Telegram once. Free-text the same agents.
-              Approve writes with a tap. Same memory and the same
-              approval flow as the dashboard — surfaced wherever you
-              already chat.
+            <p className="mt-3 max-w-md text-sm leading-relaxed text-muted-foreground sm:text-base">
+              Three steps. One-time setup. Then Orbit lives wherever
+              you already chat.
             </p>
-          </div>
-        </Reveal>
 
-        <div className="mt-16 grid grid-cols-1 items-center gap-16 lg:grid-cols-2">
-          <Reveal delay={0.1}>
-            <TelegramChatMockup />
-          </Reveal>
-          <Reveal delay={0.2}>
-            <div className="flex flex-col gap-6">
-              {steps.map((s) => (
-                <div key={s.n} className="flex items-start gap-4">
-                  <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-accent/30 bg-accent/10 text-[14px] font-semibold text-accent">
-                    {s.n}
-                  </div>
-                  <div className="flex flex-col gap-1">
-                    <h3 className="text-base font-semibold text-foreground">
-                      {s.title}
-                    </h3>
-                    <p className="text-sm leading-relaxed text-muted-foreground">
-                      {s.copy}
-                    </p>
+            {/* Active step (crossfade) */}
+            <div className="relative mt-10 min-h-[140px]">
+              {TELEGRAM_STEPS.map((s, i) => (
+                <div
+                  key={s.n}
+                  className={`transition-all duration-500 ${
+                    i === activeIndex
+                      ? "opacity-100"
+                      : "pointer-events-none absolute inset-0 opacity-0"
+                  }`}
+                >
+                  <div className="flex items-start gap-4">
+                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-accent/15 text-[16px] font-semibold text-accent">
+                      {s.n}
+                    </div>
+                    <div className="flex flex-col gap-1.5">
+                      <span className="font-mono text-[10px] tracking-widest text-accent uppercase">
+                        Step {s.n} / {s.tag}
+                      </span>
+                      <h3 className="text-xl font-semibold text-foreground sm:text-2xl">
+                        {s.title}
+                      </h3>
+                      <p className="max-w-md text-sm leading-relaxed text-muted-foreground">
+                        {s.copy}
+                      </p>
+                    </div>
                   </div>
                 </div>
               ))}
-              <div className="mt-2 flex flex-wrap items-center gap-2 rounded-2xl border border-border bg-surface-raised/60 px-4 py-3">
-                <span className="text-[12px] font-medium text-foreground">
-                  Why it matters
-                </span>
-                <span className="text-[12px] text-muted-foreground">
-                  · Triage emails while you commute
-                </span>
-                <span className="text-[12px] text-muted-foreground">
-                  · Approve a calendar invite from bed
-                </span>
-                <span className="text-[12px] text-muted-foreground">
-                  · Same brain, smaller surface
-                </span>
-              </div>
             </div>
-          </Reveal>
+
+            {/* Progress indicators (clickable) */}
+            <div className="mt-10 flex items-center gap-3">
+              {TELEGRAM_STEPS.map((s, i) => (
+                <button
+                  key={s.n}
+                  onClick={() => {
+                    const el = containerRef.current;
+                    if (!el) return;
+                    const top =
+                      el.offsetTop +
+                      (i / TELEGRAM_STEPS.length) *
+                        (el.offsetHeight - window.innerHeight);
+                    window.scrollTo({ top, behavior: "smooth" });
+                  }}
+                  className={`flex items-center gap-2 transition-all duration-300 ${
+                    i === activeIndex
+                      ? "opacity-100"
+                      : "opacity-40 hover:opacity-70"
+                  }`}
+                  aria-label={`Go to step ${s.n}`}
+                >
+                  <div
+                    className={`h-1.5 rounded-full transition-all duration-500 ${
+                      i === activeIndex
+                        ? "w-8 bg-accent"
+                        : "w-1.5 bg-muted-foreground"
+                    }`}
+                  />
+                  <span
+                    className={`text-xs font-medium transition-all duration-300 ${
+                      i === activeIndex
+                        ? "text-foreground opacity-100"
+                        : "w-0 overflow-hidden opacity-0"
+                    }`}
+                  >
+                    {s.tag}
+                  </span>
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Right — phone mockup that crossfades through stages */}
+          <div className="relative flex items-center justify-center">
+            <div className="relative h-[520px] w-full max-w-[360px]">
+              {TELEGRAM_STEPS.map((s, i) => (
+                <div
+                  key={s.n}
+                  className={`absolute inset-0 flex items-center justify-center transition-all duration-500 ${
+                    i === activeIndex
+                      ? "scale-100 opacity-100"
+                      : "pointer-events-none scale-95 opacity-0"
+                  }`}
+                >
+                  {s.mockup}
+                </div>
+              ))}
+            </div>
+          </div>
         </div>
       </div>
     </section>
