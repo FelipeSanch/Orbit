@@ -123,9 +123,10 @@ export function Sidebar() {
     // client-side transition that bypasses middleware; the next page
     // would render with whatever auth state was already in memory.
     // window.location forces a real HTTP request — middleware re-runs
-    // with the freshly-cleared cookie set, so /login renders properly
-    // instead of bouncing to /chat under a stale cookie.
-    window.location.href = "/login";
+    // with the freshly-cleared cookies. Landing (vs /login) matches the
+    // convention most apps use: signed-out users get the public marketing
+    // page, then opt back in via the Log in button.
+    window.location.href = "/";
   };
 
   const handleNewChat = () => {
