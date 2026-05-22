@@ -201,6 +201,14 @@ export function ChatPanel() {
   const handleSend = (content: string) => {
     if (!session?.token) return;
 
+    // Synchronous guard against double-fire: ChatInput's `disabled`
+    // already prevents most double-clicks, but two clicks within one
+    // React render cycle can still both call onSend before the
+    // disabled prop syncs. Reading isStreaming from getState() catches
+    // the in-flight case immediately, even if the prop subscription
+    // hasn't seen the new value yet.
+    if (useChatStore.getState().isStreaming) return;
+
     addMessage({
       id: crypto.randomUUID(),
       role: "user",
