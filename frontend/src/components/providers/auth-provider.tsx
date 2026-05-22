@@ -9,6 +9,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const setAuth = useAuthStore((s) => s.setAuth);
   const setMicrosoftConnected = useAuthStore((s) => s.setMicrosoftConnected);
   const setGoogleConnected = useAuthStore((s) => s.setGoogleConnected);
+  const setTelegramConnected = useAuthStore((s) => s.setTelegramConnected);
+  const setIntegrationsHydrated = useAuthStore(
+    (s) => s.setIntegrationsHydrated,
+  );
 
   useEffect(() => {
     const fetchSession = async () => {
@@ -41,8 +45,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
         const token = data.session.token;
         const headers = { Authorization: `Bearer ${token}` };
-        // Load integration statuses in parallel so sidebar dots are correct
-        // on every page, not just Settings.
+        // Load all integration statuses in parallel and only flip the
+        // integrationsHydrated flag once all three have resolved.
+        // Pages that need a stable connection state (the Hub grid)
+        // gate their render on that flag so cards don't pop in one
+        // at a time as fetches land.
         Promise.all([
           fetch(`${env.apiUrl}/api/auth/microsoft/status`, { headers })
             .then((r) => (r.ok ? r.json() : { connected: false }))
@@ -50,9 +57,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           fetch(`${env.apiUrl}/api/auth/google/status`, { headers })
             .then((r) => (r.ok ? r.json() : { connected: false }))
             .catch(() => ({ connected: false })),
-        ]).then(([ms, g]) => {
+          fetch(`${env.apiUrl}/api/channels/telegram/status`, { headers })
+            .then((r) => (r.ok ? r.json() : { connected: false }))
+            .catch(() => ({ connected: false })),
+        ]).then(([ms, g, tg]) => {
           setMicrosoftConnected(Boolean(ms.connected));
           setGoogleConnected(Boolean(g.connected));
+          setTelegramConnected(Boolean(tg.connected));
+          setIntegrationsHydrated(true);
         });
       } else {
         setAuth(null, null);
@@ -60,7 +72,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     };
 
     fetchSession();
-  }, [setAuth, setMicrosoftConnected, setGoogleConnected]);
+  }, [
+    setAuth,
+    setMicrosoftConnected,
+    setGoogleConnected,
+    setTelegramConnected,
+    setIntegrationsHydrated,
+  ]);
 
   return <>{children}</>;
 }

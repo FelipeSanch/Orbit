@@ -174,29 +174,35 @@ export default function HubPage() {
   const setMicrosoftConnected = useAuthStore((s) => s.setMicrosoftConnected);
   const isGoogleConnected = useAuthStore((s) => s.isGoogleConnected);
   const setGoogleConnected = useAuthStore((s) => s.setGoogleConnected);
+  const isTelegramConnectedGlobal = useAuthStore((s) => s.isTelegramConnected);
+  const setTelegramConnectedGlobal = useAuthStore(
+    (s) => s.setTelegramConnected,
+  );
+  const integrationsHydrated = useAuthStore((s) => s.integrationsHydrated);
 
   const [modal, setModal] = useState<ConnectModalState | null>(null);
   const [telegramModalOpen, setTelegramModalOpen] = useState(false);
-  // `null` = still loading from /api/channels/telegram/status. Used
-  // to suppress the Telegram card during hydration so it doesn't
-  // flash "Available" while the fetch resolves; once the status
-  // lands the card appears in its real section.
-  const [telegramConnected, setTelegramConnected] = useState<boolean | null>(
-    null,
-  );
+  // Telegram state lives in auth-store now (set by AuthProvider's
+  // startup fetch alongside Microsoft + Google), so this page reads
+  // it from the shared store and only writes back when the modal
+  // changes the pairing. Eliminates the per-card flicker that
+  // happened when each fetch resolved independently.
+  const telegramConnected = isTelegramConnectedGlobal;
+  const setTelegramConnected = setTelegramConnectedGlobal;
   const [telegramChatId, setTelegramChatId] = useState<string | undefined>();
   const [pending, setPending] = useState(false);
   const [filter, setFilter] = useState<"all" | "connected" | "available">("all");
   const [zoom, setZoom] = useState(1);
 
-  // Hydrate the Telegram connection state on mount + after the modal closes
-  // (covers the case where the user paired in a separate tab).
+  // Telegram connected flag comes from auth-store now (AuthProvider
+  // does the fetch alongside ms/google). We still grab chat_id here
+  // because that's a hub-only concern and isn't worth promoting to
+  // the global store.
   useEffect(() => {
     if (!session?.token) return;
     let cancelled = false;
     fetchTelegramStatus(session.token).then((status) => {
       if (cancelled || !status) return;
-      setTelegramConnected(status.connected);
       setTelegramChatId(status.chat_id);
     });
     return () => {
@@ -271,12 +277,11 @@ export default function HubPage() {
     return COMING_SOON.has(id) ? "soon" : "available";
   };
 
-  // Hide Telegram from the grid while its status is still loading.
-  // Otherwise it briefly renders in "Available" before the fetch
-  // resolves and snaps to "Connected" — the flicker the user reported.
-  const visibleIntegrations = INTEGRATIONS.filter(
-    (i) => !(i.id === "telegram" && telegramConnected === null),
-  );
+  // All status flags hydrate together via the auth-store now, so
+  // either every card has its correct status or we haven't rendered
+  // anything yet (the integrationsHydrated gate). No per-card
+  // exclusion needed.
+  const visibleIntegrations = INTEGRATIONS;
 
   const connectedCount = visibleIntegrations.filter(
     (i) => statusFor(i.id) === "connected",
@@ -481,11 +486,15 @@ export default function HubPage() {
         onMouseDown={handleCanvasMouseDown}
       >
         <div
-          className="relative mx-auto max-w-6xl px-6 py-5"
+          className={`relative mx-auto max-w-6xl px-6 py-5 transition-opacity duration-300 ${
+            integrationsHydrated ? "opacity-100" : "opacity-0"
+          }`}
           style={{
             transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom})`,
             transformOrigin: "top center",
-            transition: isDragging ? "none" : "transform 150ms ease-out",
+            transition: isDragging
+              ? "none"
+              : "transform 150ms ease-out, opacity 300ms ease-out",
           }}
         >
           {sections.map(({ label, items }) => (
@@ -586,7 +595,7 @@ export default function HubPage() {
       <TelegramPairingModal
         open={telegramModalOpen}
         token={session?.token ?? null}
-        initialConnected={telegramConnected === true}
+        initialConnected={telegramConnected}
         initialChatId={telegramChatId}
         onClose={() => setTelegramModalOpen(false)}
         onConnectedChange={(connected, chatId) => {
