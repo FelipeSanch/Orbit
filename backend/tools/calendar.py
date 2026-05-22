@@ -29,11 +29,32 @@ def _parse_event_datetime(iso_str: str) -> datetime:
     return dt.astimezone(ZoneInfo("UTC"))
 
 
+PROVIDER = "outlook_calendar"
+
+
+def _not_connected_payload() -> str:
+    return json.dumps(
+        {
+            "provider": PROVIDER,
+            "error": "not_connected",
+            "message": (
+                "Microsoft 365 isn't connected. Open the Hub and link your "
+                "Microsoft account to use Outlook Calendar."
+            ),
+        }
+    )
+
+
 def create_calendar_tools(token_manager: TokenManager, user_id: str) -> list:
     """Create Outlook Calendar tool functions with credentials bound via closure."""
 
     async def _get_calendar():
-        account = await token_manager.get_account(user_id)
+        try:
+            account = await token_manager.get_account(user_id)
+        except ValueError as e:
+            if "not connected" in str(e).lower():
+                return None
+            raise
         schedule = account.schedule()
         return schedule.get_default_calendar()
 
@@ -47,6 +68,8 @@ def create_calendar_tools(token_manager: TokenManager, user_id: str) -> list:
             max_results: Maximum events to return. Default 10.
         """
         calendar = await _get_calendar()
+        if calendar is None:
+            return _not_connected_payload()
 
         now = datetime.now(timezone.utc)
         start = datetime.fromisoformat(time_min) if time_min else now
@@ -87,7 +110,7 @@ def create_calendar_tools(token_manager: TokenManager, user_id: str) -> list:
                 }
             )
 
-        return json.dumps(events)
+        return json.dumps({"provider": PROVIDER, "items": events})
 
     @tool
     async def get_event(event_id: str) -> str:
@@ -97,10 +120,12 @@ def create_calendar_tools(token_manager: TokenManager, user_id: str) -> list:
             event_id: The Outlook calendar event ID.
         """
         calendar = await _get_calendar()
+        if calendar is None:
+            return _not_connected_payload()
         event = calendar.get_event(object_id=event_id)
 
         if not event:
-            return json.dumps({"error": "Event not found"})
+            return json.dumps({"provider": PROVIDER, "error": "Event not found"})
 
         location_str = ""
         if event.location:
@@ -117,6 +142,7 @@ def create_calendar_tools(token_manager: TokenManager, user_id: str) -> list:
 
         return json.dumps(
             {
+                "provider": PROVIDER,
                 "id": event.object_id,
                 "summary": event.subject or "",
                 "start": event.start.isoformat() if event.start else "",
@@ -150,6 +176,8 @@ def create_calendar_tools(token_manager: TokenManager, user_id: str) -> list:
             location: Event location. Optional.
         """
         calendar = await _get_calendar()
+        if calendar is None:
+            return _not_connected_payload()
         event = calendar.new_event()
 
         event.subject = summary
@@ -168,6 +196,7 @@ def create_calendar_tools(token_manager: TokenManager, user_id: str) -> list:
 
         return json.dumps(
             {
+                "provider": PROVIDER,
                 "status": "created",
                 "id": event.object_id,
                 "summary": event.subject,
@@ -196,10 +225,12 @@ def create_calendar_tools(token_manager: TokenManager, user_id: str) -> list:
             location: New location. Optional.
         """
         calendar = await _get_calendar()
+        if calendar is None:
+            return _not_connected_payload()
         event = calendar.get_event(object_id=event_id)
 
         if not event:
-            return json.dumps({"error": "Event not found"})
+            return json.dumps({"provider": PROVIDER, "error": "Event not found"})
 
         if summary:
             event.subject = summary
@@ -218,7 +249,9 @@ def create_calendar_tools(token_manager: TokenManager, user_id: str) -> list:
 
         ensure_ok(event.save(), action="the event-update request")
 
-        return json.dumps({"status": "updated", "id": event.object_id})
+        return json.dumps(
+            {"provider": PROVIDER, "status": "updated", "id": event.object_id}
+        )
 
     @tool(requires_confirmation=True)
     async def delete_event(event_id: str) -> str:
@@ -228,13 +261,15 @@ def create_calendar_tools(token_manager: TokenManager, user_id: str) -> list:
             event_id: The Outlook calendar event ID to delete.
         """
         calendar = await _get_calendar()
+        if calendar is None:
+            return _not_connected_payload()
         event = calendar.get_event(object_id=event_id)
 
         if not event:
-            return json.dumps({"error": "Event not found"})
+            return json.dumps({"provider": PROVIDER, "error": "Event not found"})
 
         ensure_ok(event.delete(), action="the event-delete request")
 
-        return json.dumps({"status": "deleted", "id": event_id})
+        return json.dumps({"provider": PROVIDER, "status": "deleted", "id": event_id})
 
     return [list_events, get_event, create_event, update_event, delete_event]

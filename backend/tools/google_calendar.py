@@ -49,13 +49,34 @@ def _event_summary(ev: dict) -> dict:
     }
 
 
+PROVIDER = "google_calendar"
+
+
+def _not_connected_payload() -> str:
+    return json.dumps(
+        {
+            "provider": PROVIDER,
+            "error": "not_connected",
+            "message": (
+                "Google Calendar isn't connected. Open the Hub and link your "
+                "Google account."
+            ),
+        }
+    )
+
+
 def create_google_calendar_tools(
     token_manager: GoogleTokenManager, user_id: str
 ) -> list:
     """Create Google Calendar tool functions with credentials bound via closure."""
 
     async def _service():
-        creds = await token_manager.get_credentials(user_id)
+        try:
+            creds = await token_manager.get_credentials(user_id)
+        except ValueError as e:
+            if "not connected" in str(e).lower():
+                return None
+            raise
         # Enforce a hard timeout via the underlying httplib2.Http instance.
         # AuthorizedHttp keeps credential injection working.
         http = AuthorizedHttp(creds, http=httplib2.Http(timeout=HTTP_TIMEOUT_S))
@@ -77,6 +98,8 @@ def create_google_calendar_tools(
             calendar_id: Which calendar to read. 'primary' by default.
         """
         service = await _service()
+        if service is None:
+            return _not_connected_payload()
 
         now = datetime.now(timezone.utc)
         start = _to_rfc3339(time_min, now)
@@ -94,7 +117,12 @@ def create_google_calendar_tools(
             orderBy="startTime",
         ).execute()
 
-        return json.dumps([_event_summary(e) for e in result.get("items", [])])
+        return json.dumps(
+            {
+                "provider": PROVIDER,
+                "items": [_event_summary(e) for e in result.get("items", [])],
+            }
+        )
 
     @tool
     async def get_event(event_id: str, calendar_id: str = "primary") -> str:
@@ -105,11 +133,14 @@ def create_google_calendar_tools(
             calendar_id: Which calendar. 'primary' by default.
         """
         service = await _service()
+        if service is None:
+            return _not_connected_payload()
         ev = service.events().get(
             calendarId=calendar_id, eventId=event_id
         ).execute()
         details = _event_summary(ev)
         details["description"] = ev.get("description") or ""
+        details["provider"] = PROVIDER
         return json.dumps(details)
 
     @tool(requires_confirmation=True)
@@ -134,6 +165,8 @@ def create_google_calendar_tools(
             calendar_id: Which calendar to add to. 'primary' by default.
         """
         service = await _service()
+        if service is None:
+            return _not_connected_payload()
 
         start_dt = datetime.fromisoformat(start_time)
         if start_dt.tzinfo is None:
@@ -171,6 +204,7 @@ def create_google_calendar_tools(
 
         return json.dumps(
             {
+                "provider": PROVIDER,
                 "status": "created",
                 "id": ev.get("id"),
                 "summary": ev.get("summary"),
@@ -202,6 +236,8 @@ def create_google_calendar_tools(
             calendar_id: Which calendar. 'primary' by default.
         """
         service = await _service()
+        if service is None:
+            return _not_connected_payload()
         ev = service.events().get(
             calendarId=calendar_id, eventId=event_id
         ).execute()
@@ -236,7 +272,9 @@ def create_google_calendar_tools(
         updated = service.events().update(
             calendarId=calendar_id, eventId=event_id, body=ev, sendUpdates="all"
         ).execute()
-        return json.dumps({"status": "updated", "id": updated.get("id")})
+        return json.dumps(
+            {"provider": PROVIDER, "status": "updated", "id": updated.get("id")}
+        )
 
     @tool(requires_confirmation=True)
     async def delete_event(event_id: str, calendar_id: str = "primary") -> str:
@@ -247,9 +285,11 @@ def create_google_calendar_tools(
             calendar_id: Which calendar. 'primary' by default.
         """
         service = await _service()
+        if service is None:
+            return _not_connected_payload()
         service.events().delete(
             calendarId=calendar_id, eventId=event_id, sendUpdates="all"
         ).execute()
-        return json.dumps({"status": "deleted", "id": event_id})
+        return json.dumps({"provider": PROVIDER, "status": "deleted", "id": event_id})
 
     return [list_events, get_event, create_event, update_event, delete_event]

@@ -19,20 +19,26 @@ async def create_team_for_user(user_id: str, session_id: str) -> Team:
 
     Calendar backend is chosen per-user: if Google is connected, the
     Calendar Agent uses Google Calendar. Otherwise it falls back to Outlook.
-    Email and tasks always use Microsoft.
+    Email and tasks always use Microsoft. Connection state is passed to
+    the orchestrator so it can refuse politely when a provider is
+    missing instead of letting a tool fail mid-stream.
     """
     email_tools = create_email_tools(token_manager, user_id)
     tasks_tools = create_tasks_tools(token_manager, user_id)
 
+    microsoft_connected = await token_manager.is_connected(user_id)
     google_connected = await google_token_manager.is_connected(user_id)
+
     if google_connected:
         calendar_tools = create_google_calendar_tools(
             google_token_manager, user_id
         )
         calendar_agent = create_google_calendar_agent(calendar_tools)
+        calendar_provider = "google"
     else:
         calendar_tools = create_calendar_tools(token_manager, user_id)
         calendar_agent = create_calendar_agent(calendar_tools)
+        calendar_provider = "outlook"
 
     email_agent = create_email_agent(email_tools)
     tasks_agent = create_tasks_agent(tasks_tools)
@@ -44,6 +50,9 @@ async def create_team_for_user(user_id: str, session_id: str) -> Team:
         db_url=settings.database_url,
         user_id=user_id,
         session_id=session_id,
+        microsoft_connected=microsoft_connected,
+        google_connected=google_connected,
+        calendar_provider=calendar_provider,
     )
 
     return team

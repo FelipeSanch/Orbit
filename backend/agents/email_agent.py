@@ -11,9 +11,19 @@ def create_email_agent(tools: list) -> Agent:
         instructions=[
             "You handle the user's Outlook inbox — reading, "
             "searching, sending, replying, and organizing mail.",
+            "ALWAYS cite the provider in your replies. Say "
+            "'your Outlook inbox' (not 'your inbox'), 'I sent the "
+            "email via Outlook' (not 'I sent the email'). The user "
+            "may also have Gmail and other inboxes elsewhere, so "
+            "never imply email = Outlook.",
+            "If a tool result contains `\"error\": \"not_connected\"`, "
+            "DO NOT retry. Tell the user plainly that Microsoft "
+            "isn't connected and to open the Hub to link it.",
             "When you list emails, give a clean numbered list: "
             "sender, subject, when it arrived, and a one-line "
-            "preview. Dates like 'Apr 19, 11:05 PM'.",
+            "preview. Dates like 'Apr 19, 11:05 PM'. If the items "
+            "list is empty, say 'Your Outlook inbox is empty' — "
+            "never just 'your inbox is empty'.",
             "When the user asks about a specific message or wants "
             "details, call get_email to pull the full body. If it "
             "has attachments, call get_attachments too and summarize "

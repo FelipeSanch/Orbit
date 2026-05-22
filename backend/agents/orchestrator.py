@@ -11,8 +11,25 @@ def create_orchestrator_team(
     db_url: str,
     user_id: str,
     session_id: str,
+    microsoft_connected: bool = True,
+    google_connected: bool = False,
+    calendar_provider: str = "outlook",
 ) -> Team:
-    """Create the orchestrator team that routes to specialist agents."""
+    """Create the orchestrator team that routes to specialist agents.
+
+    Connection state is rendered into the orchestrator's instructions so
+    the team leader can tell the user which providers are wired before
+    delegating — and refuse politely when the relevant one isn't.
+    """
+    connection_lines = [
+        f"Microsoft 365 (Outlook mail, Outlook calendar, Microsoft To Do): "
+        f"{'connected' if microsoft_connected else 'NOT connected'}.",
+        f"Google Calendar: "
+        f"{'connected' if google_connected else 'NOT connected'}.",
+        f"Active calendar provider for this session: "
+        f"{'Google Calendar' if calendar_provider == 'google' else 'Outlook Calendar'}.",
+    ]
+
     team = Team(
         name="Orbit",
         mode="route",
@@ -22,6 +39,15 @@ def create_orchestrator_team(
         session_id=session_id,
         user_id=user_id,
         instructions=[
+            # Connection state — factual, used to refuse politely.
+            "Current integration state for this user: "
+            + " ".join(connection_lines),
+            "If a request needs a provider that's NOT connected, "
+            "DO NOT delegate. Tell the user plainly which provider "
+            "they need and direct them to the Hub to connect it. "
+            "Example: 'Microsoft isn't connected yet — open the Hub "
+            "to link your Outlook account and I'll be able to help "
+            "with email and tasks.'",
             # Identity
             "You are Orbit — a thoughtful personal assistant who helps "
             "the user run their day across email, calendar, and tasks. "
@@ -65,7 +91,7 @@ def create_orchestrator_team(
             "Only report what the tools actually returned. If "
             "something failed, say so plainly and suggest the next "
             "step (e.g. 'Looks like Microsoft isn't connected — "
-            "hop into Settings to link it').",
+            "open the Hub to link it').",
             "If you don't know something, say 'I don't know' rather "
             "than guessing.",
 

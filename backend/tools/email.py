@@ -5,12 +5,32 @@ from agno.tools.decorator import tool
 from services.graph_safety import ensure_ok
 from services.token_manager import TokenManager
 
+PROVIDER = "outlook"
+
+
+def _not_connected_payload() -> str:
+    return json.dumps(
+        {
+            "provider": PROVIDER,
+            "error": "not_connected",
+            "message": (
+                "Microsoft 365 isn't connected. Open the Hub and link your "
+                "Microsoft account to use Outlook email."
+            ),
+        }
+    )
+
 
 def create_email_tools(token_manager: TokenManager, user_id: str) -> list:
     """Create Outlook Mail tool functions with credentials bound via closure."""
 
     async def _get_mailbox():
-        account = await token_manager.get_account(user_id)
+        try:
+            account = await token_manager.get_account(user_id)
+        except ValueError as e:
+            if "not connected" in str(e).lower():
+                return None
+            raise
         return account.mailbox()
 
     @tool
@@ -22,6 +42,8 @@ def create_email_tools(token_manager: TokenManager, user_id: str) -> list:
             max_results: Maximum number of emails to return. Default 10.
         """
         mailbox = await _get_mailbox()
+        if mailbox is None:
+            return _not_connected_payload()
 
         folder_map = {
             "inbox": mailbox.inbox_folder,
@@ -56,7 +78,7 @@ def create_email_tools(token_manager: TokenManager, user_id: str) -> list:
                 }
             )
 
-        return json.dumps(emails)
+        return json.dumps({"provider": PROVIDER, "folder": folder, "items": emails})
 
     @tool
     async def get_email(email_id: str) -> str:
@@ -66,10 +88,12 @@ def create_email_tools(token_manager: TokenManager, user_id: str) -> list:
             email_id: The Outlook message ID.
         """
         mailbox = await _get_mailbox()
+        if mailbox is None:
+            return _not_connected_payload()
         msg = mailbox.get_message(object_id=email_id)
 
         if not msg:
-            return json.dumps({"error": "Message not found"})
+            return json.dumps({"provider": PROVIDER, "error": "Message not found"})
 
         sender = ""
         if msg.sender:
@@ -91,6 +115,7 @@ def create_email_tools(token_manager: TokenManager, user_id: str) -> list:
 
         return json.dumps(
             {
+                "provider": PROVIDER,
                 "id": msg.object_id,
                 "subject": msg.subject or "",
                 "from": sender,
@@ -113,6 +138,8 @@ def create_email_tools(token_manager: TokenManager, user_id: str) -> list:
             max_results: Maximum results to return. Default 20.
         """
         mailbox = await _get_mailbox()
+        if mailbox is None:
+            return _not_connected_payload()
         q = mailbox.new_query().search(query)
         messages = mailbox.get_messages(query=q, limit=max_results)
 
@@ -136,7 +163,7 @@ def create_email_tools(token_manager: TokenManager, user_id: str) -> list:
                 }
             )
 
-        return json.dumps(emails)
+        return json.dumps({"provider": PROVIDER, "query": query, "items": emails})
 
     @tool(requires_confirmation=True)
     async def send_email(to: str, subject: str, body: str, cc: str = "", bcc: str = "") -> str:
@@ -150,6 +177,8 @@ def create_email_tools(token_manager: TokenManager, user_id: str) -> list:
             bcc: BCC recipients (comma-separated). Optional.
         """
         mailbox = await _get_mailbox()
+        if mailbox is None:
+            return _not_connected_payload()
         msg = mailbox.new_message()
 
         for addr in to.split(","):
@@ -166,7 +195,9 @@ def create_email_tools(token_manager: TokenManager, user_id: str) -> list:
 
         ensure_ok(msg.send(), action="the send request")
 
-        return json.dumps({"status": "sent", "to": to, "subject": subject})
+        return json.dumps(
+            {"provider": PROVIDER, "status": "sent", "to": to, "subject": subject}
+        )
 
     @tool(requires_confirmation=True)
     async def reply_to_email(email_id: str, body: str, reply_all: bool = False) -> str:
@@ -178,10 +209,14 @@ def create_email_tools(token_manager: TokenManager, user_id: str) -> list:
             reply_all: Whether to reply to all recipients. Default false.
         """
         mailbox = await _get_mailbox()
+        if mailbox is None:
+            return _not_connected_payload()
         original = mailbox.get_message(object_id=email_id)
 
         if not original:
-            return json.dumps({"error": "Original message not found"})
+            return json.dumps(
+                {"provider": PROVIDER, "error": "Original message not found"}
+            )
 
         reply = original.reply(to_all=reply_all)
         reply.body = body
@@ -189,6 +224,7 @@ def create_email_tools(token_manager: TokenManager, user_id: str) -> list:
 
         return json.dumps(
             {
+                "provider": PROVIDER,
                 "status": "sent",
                 "in_reply_to": original.subject,
                 "reply_all": reply_all,
@@ -203,14 +239,16 @@ def create_email_tools(token_manager: TokenManager, user_id: str) -> list:
             email_id: The Outlook message ID to delete.
         """
         mailbox = await _get_mailbox()
+        if mailbox is None:
+            return _not_connected_payload()
         msg = mailbox.get_message(object_id=email_id)
 
         if not msg:
-            return json.dumps({"error": "Message not found"})
+            return json.dumps({"provider": PROVIDER, "error": "Message not found"})
 
         ensure_ok(msg.delete(), action="the delete request")
 
-        return json.dumps({"status": "deleted", "id": email_id})
+        return json.dumps({"provider": PROVIDER, "status": "deleted", "id": email_id})
 
     @tool(requires_confirmation=True)
     async def move_email(email_id: str, destination_folder: str) -> str:
@@ -221,10 +259,12 @@ def create_email_tools(token_manager: TokenManager, user_id: str) -> list:
             destination_folder: Target folder ('inbox', 'archive', 'junk', 'deleted').
         """
         mailbox = await _get_mailbox()
+        if mailbox is None:
+            return _not_connected_payload()
         msg = mailbox.get_message(object_id=email_id)
 
         if not msg:
-            return json.dumps({"error": "Message not found"})
+            return json.dumps({"provider": PROVIDER, "error": "Message not found"})
 
         folder_map = {
             "inbox": mailbox.inbox_folder,
@@ -238,7 +278,14 @@ def create_email_tools(token_manager: TokenManager, user_id: str) -> list:
             moved = msg.move(destination_folder)  # Try as folder ID or name
         ensure_ok(moved, action="the move request")
 
-        return json.dumps({"status": "moved", "id": email_id, "folder": destination_folder})
+        return json.dumps(
+            {
+                "provider": PROVIDER,
+                "status": "moved",
+                "id": email_id,
+                "folder": destination_folder,
+            }
+        )
 
     @tool
     async def get_attachments(email_id: str) -> str:
@@ -253,13 +300,17 @@ def create_email_tools(token_manager: TokenManager, user_id: str) -> list:
         import base64
 
         mailbox = await _get_mailbox()
+        if mailbox is None:
+            return _not_connected_payload()
         msg = mailbox.get_message(object_id=email_id)
 
         if not msg:
-            return json.dumps({"error": "Message not found"})
+            return json.dumps({"provider": PROVIDER, "error": "Message not found"})
 
         if not msg.has_attachments:
-            return json.dumps({"message": "No attachments"})
+            return json.dumps(
+                {"provider": PROVIDER, "items": [], "message": "No attachments"}
+            )
 
         msg.attachments.download_attachments()
         attachments = []
@@ -293,7 +344,7 @@ def create_email_tools(token_manager: TokenManager, user_id: str) -> list:
 
             attachments.append(info)
 
-        return json.dumps(attachments)
+        return json.dumps({"provider": PROVIDER, "items": attachments})
 
     return [
         list_emails,
