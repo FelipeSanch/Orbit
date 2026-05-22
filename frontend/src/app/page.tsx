@@ -1104,12 +1104,49 @@ function DemoSection() {
   }, [onScroll]);
 
   return (
-    <section
-      ref={containerRef}
-      id="demo"
-      className="mt-32"
-      style={{ height: `${(demos.length + 1.5) * 100}vh` }}
-    >
+    <>
+      {/* Mobile: simple stacked list of demos. Scroll-hijack doesn't
+          work on phones — the sticky-inside-tall-section math fights
+          mobile address-bar collapse and momentum scrolling. */}
+      <section id="demo" className="mt-16 px-6 py-12 md:hidden">
+        <div className="mx-auto flex max-w-md flex-col gap-14">
+          <p className="text-center font-mono text-xs tracking-widest text-accent/60 uppercase">
+            See it in action
+          </p>
+          {demos.map((demo) => (
+            <div key={demo.tag} className="flex flex-col gap-3">
+              <span className="font-mono text-[10px] tracking-widest text-accent uppercase">
+                {demo.tag} / {demo.label}
+              </span>
+              <h3 className="text-2xl font-bold tracking-tight">
+                {demo.title}
+              </h3>
+              <p className="text-sm leading-relaxed text-muted-foreground">
+                {demo.description}
+              </p>
+              <div className="mt-3 rounded-2xl border border-border bg-surface p-4">
+                <div className="flex flex-col gap-2.5">
+                  {demo.messages.map((m, i) =>
+                    m.role === "user" ? (
+                      <UserBubble key={i} text={m.text} />
+                    ) : (
+                      <AssistantBubble key={i}>{m.content}</AssistantBubble>
+                    ),
+                  )}
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      {/* Desktop: scroll-hijack walkthrough. */}
+      <section
+        ref={containerRef}
+        id="demo-desktop"
+        className="mt-32 hidden md:block"
+        style={{ height: `${(demos.length + 1.5) * 100}vh` }}
+      >
       <div className="sticky top-0 flex h-screen items-center pt-16">
         <div className="mx-auto grid w-full max-w-7xl gap-16 px-6 md:grid-cols-[1fr_1.5fr] md:gap-24">
           {/* Left — labels */}
@@ -1288,7 +1325,8 @@ function DemoSection() {
           </div>
         </div>
       </div>
-    </section>
+      </section>
+    </>
   );
 }
 
@@ -1473,7 +1511,11 @@ function StepItem({
           {number}
         </span>
         {!isLast && (
-          <div className="relative mt-2 -mb-[7rem] w-px flex-1" style={{ zIndex: 0 }}>
+          // Connecting line only on md+ — its negative margin is
+          // calibrated for the desktop 3-column grid and turns into
+          // a layout-breaking overlap when the grid collapses to a
+          // single column on mobile.
+          <div className="relative mt-2 -mb-[7rem] hidden w-px flex-1 md:block" style={{ zIndex: 0 }}>
             <div className="absolute inset-0 bg-border" />
             <div
               className="absolute top-0 left-0 w-full bg-accent/40 transition-all ease-out"
@@ -1898,13 +1940,66 @@ function TelegramSection() {
   }, [onScroll]);
 
   return (
-    <section
-      ref={containerRef}
-      className="border-t border-border/40"
-      style={{
-        height: `${(TELEGRAM_STEPS.length + 1) * 100}vh`,
-      }}
-    >
+    <>
+      {/* Mobile: simple stacked walkthrough, no scroll-hijack. */}
+      <section className="border-t border-border/40 px-6 py-16 md:hidden">
+        <div className="mx-auto flex max-w-md flex-col gap-12">
+          <div className="flex flex-col items-start gap-3">
+            <span className="inline-flex items-center gap-1.5 rounded-full border border-accent/30 bg-accent/10 px-3 py-1 text-[11px] font-medium text-accent">
+              <svg
+                className="h-3 w-3"
+                viewBox="0 0 24 24"
+                fill="currentColor"
+                aria-hidden
+              >
+                <path d="M22 2L2 10l7 2.5L19 5l-7 9 2.5 7L22 2z" />
+              </svg>
+              Telegram peer channel
+            </span>
+            <h2 className="text-3xl font-bold tracking-tight">
+              Carry Orbit in your pocket
+            </h2>
+            <p className="text-sm leading-relaxed text-muted-foreground">
+              Three steps. One-time setup. Then Orbit lives wherever
+              you already chat.
+            </p>
+          </div>
+
+          {TELEGRAM_STEPS.map((s) => (
+            <div key={s.n} className="flex flex-col items-start gap-4">
+              <div className="flex items-start gap-3">
+                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-accent/15 text-[14px] font-semibold text-accent">
+                  {s.n}
+                </div>
+                <div className="flex flex-col gap-1">
+                  <span className="font-mono text-[10px] tracking-widest text-accent uppercase">
+                    Step {s.n} / {s.tag}
+                  </span>
+                  <h3 className="text-lg font-semibold text-foreground">
+                    {s.title}
+                  </h3>
+                  <p className="text-sm leading-relaxed text-muted-foreground">
+                    {s.copy}
+                  </p>
+                </div>
+              </div>
+              {/* Scale the iPhone mockup down on mobile so it fits */}
+              <div className="w-full origin-top scale-[0.85] sm:scale-95">
+                {s.mockup}
+              </div>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      {/* Desktop: scroll-hijack walkthrough. */}
+      <section
+        ref={containerRef}
+        className="hidden border-t border-border/40 md:block"
+        style={{
+          height: `${(TELEGRAM_STEPS.length + 1) * 100}vh`,
+        }}
+      >
       <div className="sticky top-0 flex h-screen items-center pt-16">
         <div className="mx-auto grid w-full max-w-6xl items-center gap-12 px-6 md:grid-cols-[1fr_1.1fr] md:gap-16">
           {/* Left — step labels (crossfade through them) */}
@@ -2020,7 +2115,8 @@ function TelegramSection() {
           </div>
         </div>
       </div>
-    </section>
+      </section>
+    </>
   );
 }
 
