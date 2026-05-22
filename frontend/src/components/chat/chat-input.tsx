@@ -352,7 +352,7 @@ export function ChatInput({
             </svg>
           </button>
         </div>
-        <p className="mt-1.5 text-center text-[10px] text-muted-foreground/40">
+        <p className="mt-2 text-center text-[10px] text-muted-foreground/70">
           Orbit can make mistakes. Verify important information.
         </p>
       </div>

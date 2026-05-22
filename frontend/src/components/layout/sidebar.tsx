@@ -54,8 +54,6 @@ export function Sidebar() {
   const router = useRouter();
   const user = useAuthStore((s) => s.user);
   const session = useAuthStore((s) => s.session);
-  const isMicrosoftConnected = useAuthStore((s) => s.isMicrosoftConnected);
-  const isGoogleConnected = useAuthStore((s) => s.isGoogleConnected);
   const conversations = useChatStore((s) => s.conversations);
   const currentConversationId = useChatStore((s) => s.currentConversationId);
   const setConversations = useChatStore((s) => s.setConversations);
@@ -493,40 +491,10 @@ export function Sidebar() {
         </div>
       </div>
 
-      {/* Bottom: Connection Status + User */}
+      {/* Bottom: User section (connection status removed — canonical
+          source is the Hub; duplicating it here was wasted real
+          estate). */}
       <div className="flex flex-col gap-1 border-t border-border p-3">
-        {/* Integration indicators */}
-        <div className="hidden flex-col gap-1 px-2.5 py-1.5 group-data-[collapsed=false]/sidebar:lg:flex">
-          <div className="flex items-center gap-2">
-            <div
-              className={`h-1.5 w-1.5 rounded-full ${
-                isMicrosoftConnected
-                  ? "bg-emerald-500 shadow-[0_0_4px_rgba(16,185,129,0.4)]"
-                  : "bg-zinc-400 dark:bg-zinc-600"
-              }`}
-            />
-            <span className="text-[11px] text-muted-foreground">
-              {isMicrosoftConnected
-                ? "Microsoft connected"
-                : "Microsoft not connected"}
-            </span>
-          </div>
-          <div className="flex items-center gap-2">
-            <div
-              className={`h-1.5 w-1.5 rounded-full ${
-                isGoogleConnected
-                  ? "bg-emerald-500 shadow-[0_0_4px_rgba(16,185,129,0.4)]"
-                  : "bg-zinc-400 dark:bg-zinc-600"
-              }`}
-            />
-            <span className="text-[11px] text-muted-foreground">
-              {isGoogleConnected
-                ? "Google Calendar connected"
-                : "Google Calendar not connected"}
-            </span>
-          </div>
-        </div>
-
         {/* User section */}
         <div className="flex items-center gap-2.5 rounded-lg px-2 py-1.5">
           {user?.image ? (
