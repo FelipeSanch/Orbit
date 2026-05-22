@@ -1,5 +1,8 @@
+from typing import Callable, Optional
+
 from agno.agent import Agent
-from agno.models.anthropic import Claude
+
+from services.claude_with_fallback import FallbackClaude
 
 
 def create_email_agent(
@@ -7,6 +10,7 @@ def create_email_agent(
     db=None,
     session_id: str | None = None,
     user_id: str | None = None,
+    on_fallback: Optional[Callable[[str, str, str], None]] = None,
 ) -> Agent:
     """Create the email specialist agent.
 
@@ -17,9 +21,11 @@ def create_email_agent(
     """
     return Agent(
         name="Email Agent",
-        model=Claude(
+        model=FallbackClaude(
             id="claude-sonnet-4-6",
+            fallback_id="claude-haiku-4-5-20251001",
             client_params={"max_retries": 5},
+            on_fallback=on_fallback,
         ),
         tools=tools,
         db=db,
