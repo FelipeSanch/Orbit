@@ -177,7 +177,13 @@ export default function HubPage() {
 
   const [modal, setModal] = useState<ConnectModalState | null>(null);
   const [telegramModalOpen, setTelegramModalOpen] = useState(false);
-  const [telegramConnected, setTelegramConnected] = useState(false);
+  // `null` = still loading from /api/channels/telegram/status. Used
+  // to suppress the Telegram card during hydration so it doesn't
+  // flash "Available" while the fetch resolves; once the status
+  // lands the card appears in its real section.
+  const [telegramConnected, setTelegramConnected] = useState<boolean | null>(
+    null,
+  );
   const [telegramChatId, setTelegramChatId] = useState<string | undefined>();
   const [pending, setPending] = useState(false);
   const [filter, setFilter] = useState<"all" | "connected" | "available">("all");
@@ -265,11 +271,18 @@ export default function HubPage() {
     return COMING_SOON.has(id) ? "soon" : "available";
   };
 
-  const connectedCount = INTEGRATIONS.filter(
+  // Hide Telegram from the grid while its status is still loading.
+  // Otherwise it briefly renders in "Available" before the fetch
+  // resolves and snaps to "Connected" — the flicker the user reported.
+  const visibleIntegrations = INTEGRATIONS.filter(
+    (i) => !(i.id === "telegram" && telegramConnected === null),
+  );
+
+  const connectedCount = visibleIntegrations.filter(
     (i) => statusFor(i.id) === "connected",
   ).length;
 
-  const filtered = INTEGRATIONS.filter((i) => {
+  const filtered = visibleIntegrations.filter((i) => {
     const s = statusFor(i.id);
     if (filter === "connected") return s === "connected";
     if (filter === "available") return s !== "soon";
@@ -573,7 +586,7 @@ export default function HubPage() {
       <TelegramPairingModal
         open={telegramModalOpen}
         token={session?.token ?? null}
-        initialConnected={telegramConnected}
+        initialConnected={telegramConnected === true}
         initialChatId={telegramChatId}
         onClose={() => setTelegramModalOpen(false)}
         onConnectedChange={(connected, chatId) => {
