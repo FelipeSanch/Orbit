@@ -2,8 +2,21 @@ import { NextResponse, type NextRequest } from "next/server";
 
 const publicPaths = ["/", "/login"];
 
+// Better Auth uses two cookie names depending on transport:
+//   - http (local dev): `better-auth.session_token`
+//   - https (production): `__Secure-better-auth.session_token`
+// The `__Secure-` prefix is mandated by the cookie spec when the Secure
+// attribute is set. Checking both ensures the middleware sees the
+// session regardless of environment.
+const SESSION_COOKIE_NAMES = [
+  "better-auth.session_token",
+  "__Secure-better-auth.session_token",
+];
+
 export async function middleware(request: NextRequest) {
-  const sessionCookie = request.cookies.get("better-auth.session_token");
+  const sessionCookie = SESSION_COOKIE_NAMES.map((n) =>
+    request.cookies.get(n),
+  ).find(Boolean);
   const { pathname } = request.nextUrl;
 
   const isPublic =
