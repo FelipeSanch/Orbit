@@ -401,9 +401,10 @@ export default function HubPage() {
       {/* Painterly cosmic frame */}
       <CosmicFrame />
 
-      {/* Workspace chrome bar */}
-      <div className="relative z-10 flex h-14 shrink-0 items-center justify-between border-b border-border/60 bg-background/40 pl-16 pr-4 backdrop-blur-sm sm:px-6">
-        <div className="flex items-center gap-2 text-[13px]">
+      {/* Workspace chrome bar — breadcrumb + counter hide on mobile
+          to leave room for the filter tabs (the actual control). */}
+      <div className="relative z-10 flex h-14 shrink-0 items-center justify-between gap-2 border-b border-border/60 bg-background/40 pl-16 pr-4 backdrop-blur-sm sm:px-6">
+        <div className="hidden items-center gap-2 text-[13px] sm:flex">
           <div className="flex h-5 w-5 items-center justify-center rounded-full bg-accent/20 text-accent">
             <svg
               className="h-3 w-3"
@@ -429,10 +430,10 @@ export default function HubPage() {
           <span className="font-medium text-foreground">hub</span>
         </div>
 
-        <div className="flex items-center gap-1 text-[12px]">
+        <div className="flex items-center gap-1 text-[11px] sm:text-[12px]">
           <button
             onClick={() => setFilter("all")}
-            className={`cursor-pointer rounded-md px-3 py-1.5 transition-colors ${
+            className={`cursor-pointer rounded-md px-2 py-1.5 transition-colors sm:px-3 ${
               filter === "all"
                 ? "border-b-2 border-accent text-foreground"
                 : "border-b-2 border-transparent text-muted-foreground hover:text-foreground"
@@ -442,7 +443,7 @@ export default function HubPage() {
           </button>
           <button
             onClick={() => setFilter("connected")}
-            className={`cursor-pointer rounded-md px-3 py-1.5 transition-colors ${
+            className={`cursor-pointer rounded-md px-2 py-1.5 transition-colors sm:px-3 ${
               filter === "connected"
                 ? "border-b-2 border-accent text-foreground"
                 : "border-b-2 border-transparent text-muted-foreground hover:text-foreground"
@@ -455,7 +456,7 @@ export default function HubPage() {
           </button>
           <button
             onClick={() => setFilter("available")}
-            className={`cursor-pointer rounded-md px-3 py-1.5 transition-colors ${
+            className={`cursor-pointer rounded-md px-2 py-1.5 transition-colors sm:px-3 ${
               filter === "available"
                 ? "border-b-2 border-accent text-foreground"
                 : "border-b-2 border-transparent text-muted-foreground hover:text-foreground"
@@ -465,7 +466,7 @@ export default function HubPage() {
           </button>
         </div>
 
-        <div className="flex items-center gap-2 text-[12px]">
+        <div className="hidden items-center gap-2 text-[12px] sm:flex">
           <span className="text-muted-foreground">
             {connectedCount} of {INTEGRATIONS.length}
           </span>
@@ -476,12 +477,13 @@ export default function HubPage() {
         </div>
       </div>
 
-      {/* Canvas — pan via mousedown drag on the empty background.
-          overflow-hidden because pan replaces scroll; clicking a card
-          / button skips the drag (see handleCanvasMouseDown). */}
+      {/* Canvas — desktop pans via mousedown drag, mobile falls back
+          to vertical scroll (touch pan is non-trivial + most users
+          expect normal scroll on phones). overflow-y-auto on mobile,
+          overflow-hidden on lg+ so pan can replace scroll. */}
       <div
-        className={`relative z-10 min-h-0 flex-1 overflow-hidden ${
-          isDragging ? "cursor-grabbing" : "cursor-grab"
+        className={`relative z-10 min-h-0 flex-1 overflow-y-auto lg:overflow-hidden ${
+          isDragging ? "lg:cursor-grabbing" : "lg:cursor-grab"
         }`}
         onMouseDown={handleCanvasMouseDown}
       >

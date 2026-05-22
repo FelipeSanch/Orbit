@@ -35,15 +35,15 @@ export default function DashboardPage() {
 
   return (
     <div className="flex h-full flex-1 flex-col">
-      <div className="flex h-14 shrink-0 items-center justify-between border-b border-border pl-16 pr-4 sm:px-6">
-        <div className="flex items-center gap-3">
-          <h1 className="text-sm font-semibold text-foreground truncate max-w-[300px]">
+      <div className="flex h-14 shrink-0 items-center justify-between gap-2 border-b border-border pl-16 pr-4 sm:px-6">
+        <div className="flex min-w-0 flex-1 items-center gap-3">
+          <h1 className="min-w-0 flex-1 truncate text-sm font-semibold text-foreground sm:max-w-[300px]">
             {currentTitle ?? (messagesCount > 0 ? "Chat" : "New Chat")}
           </h1>
         </div>
         <div className="flex items-center gap-2">
           {isMicrosoftConnected && (
-            <div className="flex items-center gap-1.5 rounded-full bg-emerald-500/10 px-2.5 py-1">
+            <div className="hidden items-center gap-1.5 rounded-full bg-emerald-500/10 px-2.5 py-1 sm:flex">
               <div className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
               <span className="text-[11px] font-medium text-emerald-600 dark:text-emerald-400">
                 Connected
