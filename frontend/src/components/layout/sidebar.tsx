@@ -469,9 +469,23 @@ export function Sidebar() {
 
         {/* User section */}
         <div className="flex items-center gap-2.5 rounded-lg px-2 py-1.5">
-          <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-accent/15 text-[11px] font-semibold text-accent">
-            {initials}
-          </div>
+          {user?.image ? (
+            // Real profile photo when the user has one (Google /
+            // Microsoft sign-in populates user.image). Instantly
+            // recognizable signal of which account is active —
+            // initials alone made it hard to spot a wrong-account
+            // sign-in.
+            <img
+              src={user.image}
+              alt=""
+              referrerPolicy="no-referrer"
+              className="h-7 w-7 shrink-0 rounded-full object-cover"
+            />
+          ) : (
+            <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-accent/15 text-[11px] font-semibold text-accent">
+              {initials}
+            </div>
+          )}
           <div className="hidden min-w-0 flex-1 lg:block">
             <p className="truncate text-[13px] font-medium text-foreground">
               {user?.name || "User"}
