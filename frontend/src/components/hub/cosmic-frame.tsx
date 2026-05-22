@@ -19,11 +19,14 @@ export function CosmicFrame() {
   return (
     <>
       <div
-        className="pointer-events-none absolute inset-0 bg-[#0e0f14]"
+        className="pointer-events-none absolute inset-0 bg-[var(--hub-canvas)]"
         aria-hidden
       />
+      {/* Dot grid — color sourced from --foreground so it adapts to
+          theme (faint white dots in dark mode, faint slate dots in
+          light mode) without two hardcoded gradients. */}
       <div
-        className="pointer-events-none absolute inset-0 [background-image:radial-gradient(circle,rgba(255,255,255,0.06)_1px,transparent_1.1px)] [background-size:38px_38px]"
+        className="pointer-events-none absolute inset-0 opacity-[0.06] [background-image:radial-gradient(circle,var(--foreground)_1px,transparent_1.1px)] [background-size:38px_38px]"
         aria-hidden
       />
     </>
