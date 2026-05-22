@@ -1104,79 +1104,44 @@ function DemoSection() {
   }, [onScroll]);
 
   return (
-    <>
-      {/* Mobile: simple stacked list of demos. Scroll-hijack doesn't
-          work on phones — the sticky-inside-tall-section math fights
-          mobile address-bar collapse and momentum scrolling. */}
-      <section id="demo" className="mt-16 px-6 py-12 md:hidden">
-        <div className="mx-auto flex max-w-md flex-col gap-14">
-          <p className="text-center font-mono text-xs tracking-widest text-accent/60 uppercase">
-            See it in action
-          </p>
-          {demos.map((demo) => (
-            <div key={demo.tag} className="flex flex-col gap-3">
-              <span className="font-mono text-[10px] tracking-widest text-accent uppercase">
-                {demo.tag} / {demo.label}
-              </span>
-              <h3 className="text-2xl font-bold tracking-tight">
-                {demo.title}
-              </h3>
-              <p className="text-sm leading-relaxed text-muted-foreground">
-                {demo.description}
-              </p>
-              <div className="mt-3 rounded-2xl border border-border bg-surface p-4">
-                <div className="flex flex-col gap-2.5">
-                  {demo.messages.map((m, i) =>
-                    m.role === "user" ? (
-                      <UserBubble key={i} text={m.text} />
-                    ) : (
-                      <AssistantBubble key={i}>{m.content}</AssistantBubble>
-                    ),
-                  )}
-                </div>
-              </div>
-            </div>
-          ))}
-        </div>
-      </section>
-
-      {/* Desktop: scroll-hijack walkthrough. */}
-      <section
-        ref={containerRef}
-        id="demo-desktop"
-        className="mt-32 hidden md:block"
-        style={{ height: `${(demos.length + 1.5) * 100}vh` }}
-      >
-      <div className="sticky top-0 flex h-screen items-center pt-16">
-        <div className="mx-auto grid w-full max-w-7xl gap-16 px-6 md:grid-cols-[1fr_1.5fr] md:gap-24">
+    <section
+      ref={containerRef}
+      id="demo"
+      className="mt-16 md:mt-32"
+      style={{ height: `${(demos.length + 1.5) * 100}svh` }}
+    >
+      <div className="sticky top-0 flex h-[100svh] flex-col justify-center px-4 py-6 sm:pt-16 md:flex-row md:items-center md:px-6">
+        <div className="mx-auto grid w-full max-w-7xl gap-6 md:grid-cols-[1fr_1.5fr] md:gap-24">
           {/* Left — labels */}
           <div className="flex flex-col justify-center">
-            <p className="mb-6 font-mono text-xs tracking-widest text-accent/60 uppercase">
+            <p className="mb-3 font-mono text-[10px] tracking-widest text-accent/60 uppercase md:mb-6 md:text-xs">
               See it in action
             </p>
-            {demos.map((demo, i) => (
-              <div
-                key={demo.tag}
-                className={`transition-all duration-500 ${
-                  i === activeIndex
-                    ? "opacity-100"
-                    : "pointer-events-none absolute opacity-0"
-                }`}
-              >
-                <span className="mb-3 inline-block font-mono text-xs tracking-widest text-accent uppercase">
-                  {demo.tag} / {demo.label}
-                </span>
-                <h2 className="text-3xl font-bold tracking-tight sm:text-5xl">
-                  {demo.title}
-                </h2>
-                <p className="mt-4 max-w-sm text-base leading-relaxed text-muted-foreground">
-                  {demo.description}
-                </p>
-              </div>
-            ))}
+            <div className="relative min-h-[80px] md:min-h-[200px]">
+              {demos.map((demo, i) => (
+                <div
+                  key={demo.tag}
+                  className={`transition-all duration-500 ${
+                    i === activeIndex
+                      ? "opacity-100"
+                      : "pointer-events-none absolute inset-0 opacity-0"
+                  }`}
+                >
+                  <span className="mb-2 inline-block font-mono text-[10px] tracking-widest text-accent uppercase md:mb-3 md:text-xs">
+                    {demo.tag} / {demo.label}
+                  </span>
+                  <h2 className="text-xl font-bold tracking-tight sm:text-3xl md:text-5xl">
+                    {demo.title}
+                  </h2>
+                  <p className="mt-2 max-w-sm text-[13px] leading-relaxed text-muted-foreground sm:text-sm md:mt-4 md:text-base">
+                    {demo.description}
+                  </p>
+                </div>
+              ))}
+            </div>
 
             {/* Progress indicators */}
-            <div className="mt-12 flex items-center gap-3">
+            <div className="mt-4 flex items-center gap-3 md:mt-12">
               {demos.map((demo, i) => (
                 <button
                   key={demo.tag}
@@ -1216,7 +1181,10 @@ function DemoSection() {
             </div>
           </div>
 
-          {/* Right — Orbit dashboard window (chat + activity panel) */}
+          {/* Right — Orbit dashboard window. On mobile the activity
+              column is hidden and the body height shrinks so the
+              whole window fits inside one viewport alongside the
+              step copy + progress dots. */}
           <div className="relative flex items-center justify-center">
             <div className="w-full max-w-2xl overflow-hidden rounded-2xl border border-border bg-surface shadow-2xl shadow-black/30">
               {/* App chrome — Orbit-branded, not generic macOS */}
@@ -1239,8 +1207,9 @@ function DemoSection() {
                 </div>
               </div>
 
-              {/* Body — chat (left) + activity feed (right) */}
-              <div className="relative grid h-[460px] grid-cols-[1fr_180px]">
+              {/* Body — chat (left) + activity feed (right, hidden
+                  on mobile to leave the full width for chat). */}
+              <div className="relative grid h-[300px] grid-cols-1 sm:h-[360px] md:h-[460px] md:grid-cols-[1fr_180px]">
                 {/* Chat column — crossfade between demos */}
                 <div className="relative border-r border-border/60">
                   {demos.map((demo, i) => (
@@ -1271,8 +1240,9 @@ function DemoSection() {
                   ))}
                 </div>
 
-                {/* Activity column — also crossfades per demo */}
-                <div className="relative bg-surface-raised/40">
+                {/* Activity column — hidden on mobile (chat takes the
+                    full width to leave room for actual content) */}
+                <div className="relative hidden bg-surface-raised/40 md:block">
                   {demos.map((demo, i) => (
                     <div
                       key={demo.tag}
@@ -1288,8 +1258,10 @@ function DemoSection() {
                 </div>
               </div>
 
-              {/* Input bar — split to match the chat-only width */}
-              <div className="grid grid-cols-[1fr_180px] border-t border-border">
+              {/* Input bar — split to match the chat-only width
+                  (mobile collapses to single column when activity
+                  column is hidden) */}
+              <div className="grid grid-cols-1 border-t border-border md:grid-cols-[1fr_180px]">
                 <div className="px-4 py-3">
                   <div className="flex items-center gap-2 rounded-xl border border-border/50 bg-muted/30 px-3 py-2">
                     <span className="flex-1 text-[12px] text-muted-foreground/50">
@@ -1310,7 +1282,7 @@ function DemoSection() {
                     </svg>
                   </div>
                 </div>
-                <div className="border-l border-border/60 px-3 py-3">
+                <div className="hidden border-l border-border/60 px-3 py-3 md:block">
                   <div className="flex items-center gap-1.5 text-[9px] text-muted-foreground">
                     <span className="h-1 w-1 rounded-full bg-accent" />
                     <span>Microsoft 365</span>
@@ -1325,8 +1297,7 @@ function DemoSection() {
           </div>
         </div>
       </div>
-      </section>
-    </>
+    </section>
   );
 }
 
@@ -2047,29 +2018,24 @@ function TelegramSection() {
           </div>
 
           {/* Right — phone mockup that crossfades through stages.
-              Smaller frame on mobile (origin-top scale) so the whole
-              section fits inside one 100svh viewport even with the
-              step copy + dots above/below. */}
-          <div className="relative flex items-center justify-center">
-            <div className="relative h-[430px] w-[210px] origin-top sm:h-[520px] sm:w-[260px] md:h-[660px] md:w-[320px]">
-              {TELEGRAM_STEPS.map((s, i) => (
-                <div
-                  key={s.n}
-                  className={`absolute inset-0 flex items-center justify-center transition-all duration-500 ${
-                    i === activeIndex
-                      ? "scale-100 opacity-100"
-                      : "pointer-events-none scale-95 opacity-0"
-                  }`}
-                  style={{
-                    transformOrigin: "top center",
-                  }}
-                >
-                  <div className="origin-top scale-[0.66] sm:scale-[0.81] md:scale-100">
-                    {s.mockup}
-                  </div>
-                </div>
-              ))}
-            </div>
+              The container's height/width MATCHES the post-scale
+              dimensions of the iPhone (320×640 base) so layout
+              reserves exactly the visible space. Each absolute item
+              uses origin-top-left so the transform anchors cleanly
+              to the container's top-left corner. */}
+          <div className="relative mx-auto h-[422px] w-[211px] sm:h-[518px] sm:w-[259px] md:h-[660px] md:w-[320px]">
+            {TELEGRAM_STEPS.map((s, i) => (
+              <div
+                key={s.n}
+                className={`absolute top-0 left-0 origin-top-left scale-[0.66] transition-opacity duration-500 sm:scale-[0.81] md:scale-100 ${
+                  i === activeIndex
+                    ? "opacity-100"
+                    : "pointer-events-none opacity-0"
+                }`}
+              >
+                {s.mockup}
+              </div>
+            ))}
           </div>
         </div>
       </div>
