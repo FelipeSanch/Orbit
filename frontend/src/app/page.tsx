@@ -187,8 +187,12 @@ function Reveal({
 // ─── Navbar ───────────────────────────────────────────────────────────
 
 function NavBar() {
+  // Pill nav floats from the top with side gutters — Clave-style.
+  // The inner shell stays opaque so links stay readable over hero
+  // gradients; a tiny scroll listener bumps the shadow once the
+  // user has moved past the splash so the bar reads as "anchored"
+  // when scrolling.
   const [scrolled, setScrolled] = useState(false);
-
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 20);
     window.addEventListener("scroll", onScroll, { passive: true });
@@ -196,30 +200,28 @@ function NavBar() {
   }, []);
 
   return (
-    <header
-      className={`fixed top-0 z-50 w-full border-b transition-[border-color,background-color] duration-500 ${
-        scrolled
-          ? "border-border/50 bg-background/95 backdrop-blur-xl"
-          : "border-transparent bg-transparent"
-      }`}
-    >
-      <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-6">
+    <header className="pointer-events-none fixed inset-x-0 top-4 z-50 flex justify-center px-4 sm:top-6 sm:px-6">
+      <div
+        className={`pointer-events-auto flex h-14 w-full max-w-5xl items-center justify-between rounded-full border border-border/60 bg-surface/85 px-4 backdrop-blur-xl transition-shadow duration-300 sm:px-5 ${
+          scrolled ? "shadow-xl shadow-black/10" : "shadow-md shadow-black/5"
+        }`}
+      >
         <Link href="/" className="flex items-center gap-2.5">
-          <OrbitLogo size={28} />
-          <span className="text-lg font-semibold tracking-tight text-foreground">
+          <OrbitLogo size={26} />
+          <span className="text-base font-semibold tracking-tight text-foreground">
             Orbit
           </span>
         </Link>
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2">
           <Link
             href="/login"
-            className="rounded-lg px-4 py-2 text-sm text-muted-foreground transition-colors hover:text-foreground"
+            className="rounded-full px-3 py-1.5 text-sm text-muted-foreground transition-colors hover:text-foreground sm:px-4"
           >
             Log in
           </Link>
           <Link
             href="/login"
-            className="rounded-lg bg-accent px-4 py-2 text-sm font-medium text-accent-foreground shadow-sm shadow-accent/25 transition-all hover:brightness-110 hover:shadow-md hover:shadow-accent/30"
+            className="rounded-full bg-accent px-4 py-1.5 text-sm font-medium text-accent-foreground shadow-sm shadow-accent/25 transition-all hover:brightness-110 hover:shadow-md hover:shadow-accent/30 sm:px-5 sm:py-2"
           >
             Get Started
           </Link>
