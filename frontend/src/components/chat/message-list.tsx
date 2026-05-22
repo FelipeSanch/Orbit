@@ -5,7 +5,67 @@ import { useEffect, useRef } from "react";
 import { MessageBubble } from "./message-bubble";
 import { OrbitLogo } from "@/components/ui/orbit-logo";
 import { Markdown } from "@/components/ui/markdown";
+import { useActivityStore } from "@/stores/activity-store";
 import type { Message } from "@/types/events";
+
+// Map a tool name to a short present-tense status for the thinking
+// indicator. Specialists are intercepted via the leader's delegation
+// so the user sees "Picking the right agent" before "Reading inbox".
+function toolStatusMessage(
+  toolName: string | undefined,
+  toAgent: string | undefined,
+): string {
+  if (toAgent) {
+    const pretty = toAgent.replace(/-agent$/i, "").replace(/^./, (c) =>
+      c.toUpperCase(),
+    );
+    return `Handing off to ${pretty}`;
+  }
+  switch (toolName) {
+    case "list_emails":
+      return "Reading your inbox";
+    case "search_emails":
+      return "Searching your inbox";
+    case "get_email":
+      return "Opening that email";
+    case "get_attachments":
+      return "Fetching attachments";
+    case "send_email":
+      return "Drafting the email";
+    case "reply_to_email":
+      return "Drafting the reply";
+    case "trash_email":
+    case "move_email":
+      return "Moving that email";
+    case "list_events":
+      return "Checking your calendar";
+    case "get_event":
+      return "Loading that event";
+    case "create_event":
+      return "Drafting the event";
+    case "update_event":
+      return "Updating that event";
+    case "delete_event":
+      return "Removing that event";
+    case "list_task_lists":
+    case "list_tasks":
+      return "Pulling your task list";
+    case "get_task":
+      return "Opening that task";
+    case "create_task":
+      return "Drafting the task";
+    case "update_task":
+      return "Updating that task";
+    case "complete_task":
+      return "Marking that task done";
+    case "delete_task":
+      return "Removing that task";
+    case "delegate_task_to_member":
+      return "Picking the right agent";
+    default:
+      return "Thinking";
+  }
+}
 
 const SUGGESTIONS = [
   {
@@ -154,29 +214,47 @@ export function MessageList({
             </div>
           )}
 
-          {isStreaming && !streamingContent && (
-            <div className="flex gap-3">
-              <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-accent/10">
-                <OrbitLogo size={18} />
-              </div>
-              <div className="rounded-2xl rounded-tl-md bg-muted px-4 py-3.5">
-                <div className="flex items-center gap-2">
-                  <div className="flex gap-1">
-                    <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-accent/60 [animation-delay:0ms]" />
-                    <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-accent/60 [animation-delay:150ms]" />
-                    <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-accent/60 [animation-delay:300ms]" />
-                  </div>
-                  <span className="text-xs text-muted-foreground">
-                    Thinking...
-                  </span>
-                </div>
-              </div>
-            </div>
-          )}
+          {isStreaming && !streamingContent && <ThinkingIndicator />}
 
           <div ref={bottomRef} />
         </div>
       )}
+    </div>
+  );
+}
+
+function ThinkingIndicator() {
+  // Drive the label from the most recent in-flight activity. The
+  // activity store is newest-first, so the head is the most recent
+  // event; if it's a tool_call, surface the tool. If it's an
+  // agent_delegation, show that hand-off — happens for the brief
+  // moment before the specialist's first tool fires. Default
+  // "Thinking" otherwise (initial leader thought, or after a tool
+  // returns but before content starts streaming).
+  const head = useActivityStore((s) => s.activities[0]);
+  let toolName: string | undefined;
+  let toAgent: string | undefined;
+  if (head?.type === "tool_call") {
+    toolName = (head.data as { tool_name?: string }).tool_name;
+  } else if (head?.type === "agent_delegation") {
+    toAgent = (head.data as { to_agent?: string }).to_agent;
+  }
+  const label = toolStatusMessage(toolName, toAgent);
+  return (
+    <div className="flex gap-3">
+      <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-accent/10">
+        <OrbitLogo size={18} />
+      </div>
+      <div className="rounded-2xl rounded-tl-md bg-muted px-4 py-3.5">
+        <div className="flex items-center gap-2">
+          <div className="flex gap-1">
+            <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-accent/60 [animation-delay:0ms]" />
+            <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-accent/60 [animation-delay:150ms]" />
+            <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-accent/60 [animation-delay:300ms]" />
+          </div>
+          <span className="text-xs text-muted-foreground">{label}…</span>
+        </div>
+      </div>
     </div>
   );
 }
