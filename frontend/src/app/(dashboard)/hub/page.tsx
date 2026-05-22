@@ -402,7 +402,7 @@ export default function HubPage() {
       <CosmicFrame />
 
       {/* Workspace chrome bar */}
-      <div className="relative z-10 flex h-14 shrink-0 items-center justify-between border-b border-border/60 bg-background/40 px-6 backdrop-blur-sm">
+      <div className="relative z-10 flex h-14 shrink-0 items-center justify-between border-b border-border/60 bg-background/40 pl-16 pr-4 backdrop-blur-sm sm:px-6">
         <div className="flex items-center gap-2 text-[13px]">
           <div className="flex h-5 w-5 items-center justify-center rounded-full bg-accent/20 text-accent">
             <svg

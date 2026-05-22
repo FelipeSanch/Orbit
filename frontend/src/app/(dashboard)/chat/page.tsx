@@ -35,7 +35,7 @@ export default function DashboardPage() {
 
   return (
     <div className="flex h-full flex-1 flex-col">
-      <div className="flex h-14 shrink-0 items-center justify-between border-b border-border px-6">
+      <div className="flex h-14 shrink-0 items-center justify-between border-b border-border pl-16 pr-4 sm:px-6">
         <div className="flex items-center gap-3">
           <h1 className="text-sm font-semibold text-foreground truncate max-w-[300px]">
             {currentTitle ?? (messagesCount > 0 ? "Chat" : "New Chat")}

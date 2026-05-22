@@ -1681,12 +1681,12 @@ function PhoneFrame({ children }: { children: ReactNode }) {
 }
 
 function PairCodeMockup() {
-  // Stage 1 — Hub modal with the pair code. Renders inside the phone
-  // frame for visual continuity, even though in real life this lives
-  // on the web Hub.
+  // Stage 1 — Hub modal with the pair code. No composer (this is the
+  // web Hub, not Telegram), so the content vertically centers in the
+  // available phone body.
   return (
     <PhoneFrame>
-      <div className="flex flex-col items-center gap-4 px-5 py-8">
+      <div className="flex flex-1 flex-col items-center justify-center gap-4 px-5">
         <div className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
           Hub · Pair Telegram
         </div>
@@ -1725,10 +1725,12 @@ function PairCodeMockup() {
 }
 
 function StartCommandMockup() {
-  // Stage 2 — Telegram chat showing the /start handshake.
+  // Stage 2 — Telegram chat showing the /start handshake. Messages
+  // flex-1 so the composer always anchors at the bottom of the
+  // phone, no matter how few messages are shown.
   return (
     <PhoneFrame>
-      <div className="flex flex-col gap-2 px-3 py-4">
+      <div className="flex flex-1 flex-col gap-2 px-3 py-4">
         <div className="flex justify-end">
           <div className="max-w-[80%] rounded-2xl rounded-tr-md bg-accent px-3 py-2 font-mono text-[12px] text-accent-foreground">
             /start 482910
@@ -1777,8 +1779,9 @@ function StartCommandMockup() {
 function TelegramChatMockup() {
   return (
     <PhoneFrame>
-      {/* Messages */}
-      <div className="flex flex-col gap-2 px-3 py-4">
+      {/* Messages — flex-1 so the composer below sticks to the
+          bottom of the phone screen */}
+      <div className="flex flex-1 flex-col gap-2 px-3 py-4">
         <div className="flex justify-end">
           <div className="max-w-[80%] rounded-2xl rounded-tr-md bg-accent px-3 py-2 text-[12px] text-accent-foreground">
             what&apos;s on my calendar today?

@@ -17,7 +17,7 @@ export default function ActivityPage() {
 
   return (
     <div className="flex h-full min-h-0 flex-1 flex-col">
-      <div className="flex h-14 items-center justify-between border-b border-border px-6">
+      <div className="flex h-14 items-center justify-between border-b border-border pl-16 pr-4 sm:px-6">
         <h1 className="text-sm font-semibold text-foreground">Activity</h1>
         {activities.length > 0 && (
           <button

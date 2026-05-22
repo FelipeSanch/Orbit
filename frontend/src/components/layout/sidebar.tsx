@@ -49,7 +49,15 @@ function timeAgo(dateStr: string): string {
   return `${days}d`;
 }
 
-export function Sidebar() {
+export function Sidebar({
+  mobileOpen = false,
+}: {
+  // True when the parent layout is rendering the sidebar inside the
+  // mobile slide-in drawer. Forces full-width expanded mode regardless
+  // of the user's collapse pref or viewport width (the drawer itself
+  // provides the show/hide behavior on small screens).
+  mobileOpen?: boolean;
+} = {}) {
   const pathname = usePathname();
   const router = useRouter();
   const user = useAuthStore((s) => s.user);
@@ -219,10 +227,18 @@ export function Sidebar() {
         .slice(0, 2)
     : user?.email?.charAt(0).toUpperCase() ?? "?";
 
+  // Effective collapsed state. Inside the mobile drawer, force the
+  // expanded look so labels and full width are visible regardless of
+  // the user's desktop collapse pref or the small-viewport default.
+  const effectiveCollapsed = mobileOpen ? false : collapsed;
+
   return (
     <aside
-      data-collapsed={collapsed ? "true" : "false"}
-      className="group/sidebar flex h-full w-16 flex-col bg-surface data-[collapsed=false]:lg:w-64"
+      data-collapsed={effectiveCollapsed ? "true" : "false"}
+      data-mobile-open={mobileOpen ? "true" : "false"}
+      className={`group/sidebar flex h-full flex-col bg-surface ${
+        mobileOpen ? "w-64" : "w-16 data-[collapsed=false]:lg:w-64"
+      }`}
     >
       {/* Logo (links to landing page) + collapse toggle + New Chat */}
       <div className="flex flex-col gap-3 p-3 pb-2">
@@ -233,7 +249,7 @@ export function Sidebar() {
             title="Back to home"
           >
             <OrbitLogo size={26} />
-            <span className="hidden truncate text-[15px] font-semibold tracking-tight text-foreground group-data-[collapsed=false]/sidebar:lg:block">
+            <span className="hidden truncate text-[15px] font-semibold tracking-tight text-foreground group-data-[collapsed=false]/sidebar:lg:block group-data-[mobile-open=true]/sidebar:block">
               Orbit
             </span>
           </Link>
@@ -272,7 +288,7 @@ export function Sidebar() {
 
         <button
           onClick={handleNewChat}
-          className="flex h-9 w-full cursor-pointer items-center justify-center gap-2 rounded-lg border border-border bg-surface-raised text-sm font-medium text-foreground transition-all duration-150 hover:bg-muted hover:border-muted-foreground/20 active:scale-[0.98] group-data-[collapsed=false]/sidebar:lg:justify-start group-data-[collapsed=false]/sidebar:lg:px-3"
+          className="flex h-9 w-full cursor-pointer items-center justify-center gap-2 rounded-lg border border-border bg-surface-raised text-sm font-medium text-foreground transition-all duration-150 hover:bg-muted hover:border-muted-foreground/20 active:scale-[0.98] group-data-[collapsed=false]/sidebar:lg:justify-start group-data-[mobile-open=true]/sidebar:justify-start group-data-[collapsed=false]/sidebar:lg:px-3 group-data-[mobile-open=true]/sidebar:px-3"
         >
           <svg
             className="h-4 w-4 shrink-0"
@@ -287,7 +303,7 @@ export function Sidebar() {
               d="M12 4.5v15m7.5-7.5h-15"
             />
           </svg>
-          <span className="hidden group-data-[collapsed=false]/sidebar:lg:block">New Chat</span>
+          <span className="hidden group-data-[collapsed=false]/sidebar:lg:block group-data-[mobile-open=true]/sidebar:block">New Chat</span>
         </button>
       </div>
 
@@ -320,7 +336,7 @@ export function Sidebar() {
                   d={item.icon}
                 />
               </svg>
-              <span className="hidden group-data-[collapsed=false]/sidebar:lg:block">{item.label}</span>
+              <span className="hidden group-data-[collapsed=false]/sidebar:lg:block group-data-[mobile-open=true]/sidebar:block">{item.label}</span>
             </Link>
           );
         })}
@@ -329,14 +345,14 @@ export function Sidebar() {
       {/* Conversation History */}
       <div className="mx-3 border-t border-border" />
       <div className="flex min-h-0 flex-1 flex-col">
-        <div className="hidden px-5 pt-3 pb-1.5 group-data-[collapsed=false]/sidebar:lg:block">
+        <div className="hidden px-5 pt-3 pb-1.5 group-data-[collapsed=false]/sidebar:lg:block group-data-[mobile-open=true]/sidebar:block">
           <span className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground/70">
             Recent
           </span>
         </div>
         <div className="flex-1 overflow-y-auto px-3 py-1">
           {conversations.length === 0 ? (
-            <div className="hidden px-2 py-6 group-data-[collapsed=false]/sidebar:lg:block">
+            <div className="hidden px-2 py-6 group-data-[collapsed=false]/sidebar:lg:block group-data-[mobile-open=true]/sidebar:block">
               <p className="text-center text-[11px] leading-relaxed text-muted-foreground/50">
                 Your conversations will appear here
               </p>
@@ -349,7 +365,7 @@ export function Sidebar() {
                   <div
                     key={conv.id}
                     onClick={() => handleSelectConversation(conv.id)}
-                    className={`group hidden w-full cursor-pointer items-center gap-2 rounded-lg px-2.5 py-2 text-left transition-all duration-150 group-data-[collapsed=false]/sidebar:lg:flex ${
+                    className={`group hidden w-full cursor-pointer items-center gap-2 rounded-lg px-2.5 py-2 text-left transition-all duration-150 group-data-[collapsed=false]/sidebar:lg:flex group-data-[mobile-open=true]/sidebar:flex ${
                       isActive
                         ? "bg-accent/10 text-accent"
                         : "text-muted-foreground hover:bg-muted hover:text-foreground"
@@ -514,7 +530,7 @@ export function Sidebar() {
               {initials}
             </div>
           )}
-          <div className="hidden min-w-0 flex-1 group-data-[collapsed=false]/sidebar:lg:block">
+          <div className="hidden min-w-0 flex-1 group-data-[collapsed=false]/sidebar:lg:block group-data-[mobile-open=true]/sidebar:block">
             <p className="truncate text-[13px] font-medium text-foreground">
               {user?.name || "User"}
             </p>
@@ -527,7 +543,7 @@ export function Sidebar() {
         {/* Sign out button */}
         <button
           onClick={handleSignOut}
-          className="flex h-9 w-full cursor-pointer items-center justify-center gap-2 rounded-lg px-2.5 text-[13px] text-muted-foreground transition-all duration-150 hover:bg-muted hover:text-foreground group-data-[collapsed=false]/sidebar:lg:justify-start"
+          className="flex h-9 w-full cursor-pointer items-center justify-center gap-2 rounded-lg px-2.5 text-[13px] text-muted-foreground transition-all duration-150 hover:bg-muted hover:text-foreground group-data-[collapsed=false]/sidebar:lg:justify-start group-data-[mobile-open=true]/sidebar:justify-start"
         >
           <svg
             className="h-4 w-4 shrink-0"
@@ -542,7 +558,7 @@ export function Sidebar() {
               d="M15.75 9V5.25A2.25 2.25 0 0013.5 3h-6a2.25 2.25 0 00-2.25 2.25v13.5A2.25 2.25 0 007.5 21h6a2.25 2.25 0 002.25-2.25V15m3 0l3-3m0 0l-3-3m3 3H9"
             />
           </svg>
-          <span className="hidden group-data-[collapsed=false]/sidebar:lg:block">Sign out</span>
+          <span className="hidden group-data-[collapsed=false]/sidebar:lg:block group-data-[mobile-open=true]/sidebar:block">Sign out</span>
         </button>
       </div>
     </aside>
