@@ -1574,39 +1574,45 @@ function HowItWorksSection() {
 // ─── Telegram peer channel showcase ──────────────────────────────────
 
 function PhoneFrame({ children }: { children: ReactNode }) {
-  // iPhone-style frame: thick black bezel, dynamic island, status
-  // bar, home indicator bar. Inner area renders a Telegram-style
-  // chat surface. The frame itself is a single rounded card with
-  // a near-black outline so it reads as a device, not a tile.
+  // iPhone-shaped frame. Targets the real ~2:1 height:width ratio
+  // (320 × 640) so it reads as a device, not a squat tile. Thin
+  // titanium-style bezel, real Dynamic Island as a long pill,
+  // status row matches iOS (time | island | signal/wifi/battery),
+  // home indicator at the bottom.
   return (
-    <div className="relative mx-auto w-full max-w-[340px]">
-      {/* Bezel */}
-      <div className="relative overflow-hidden rounded-[42px] border-[6px] border-[#0a0a0c] bg-[#0a0a0c] shadow-2xl shadow-black/50 dark:border-[#1a1a1f] dark:bg-[#1a1a1f]">
+    <div className="relative mx-auto w-[320px]">
+      {/* Outer titanium bezel — very rounded, thin border. */}
+      <div className="relative h-[640px] overflow-hidden rounded-[54px] bg-[#1a1a1f] p-[3px] shadow-[0_25px_60px_-15px_rgba(0,0,0,0.65)] ring-1 ring-black/40">
         {/* Inner screen */}
-        <div className="relative overflow-hidden rounded-[34px] bg-surface-raised">
-          {/* Status bar */}
-          <div className="relative flex items-center justify-between bg-surface px-6 pt-2.5 pb-1">
-            <span className="text-[11px] font-semibold tabular-nums text-foreground">
+        <div className="relative flex h-full flex-col overflow-hidden rounded-[51px] bg-surface-raised">
+          {/* Status bar — pinned at the very top, leaves room for the
+              Dynamic Island in the middle */}
+          <div className="relative flex items-center justify-between px-7 pt-3 pb-1.5">
+            <span className="text-[13px] font-semibold tabular-nums text-foreground">
               9:41
             </span>
-            {/* Dynamic island — centered */}
-            <div className="absolute left-1/2 top-1.5 h-5 w-20 -translate-x-1/2 rounded-full bg-[#0a0a0c]" />
-            <div className="flex items-center gap-1">
-              {/* Signal */}
+            <div className="flex items-center gap-1.5">
               <svg
-                className="h-2.5 w-3 text-foreground"
+                className="h-3 w-4 text-foreground"
+                viewBox="0 0 18 12"
+                fill="currentColor"
+                aria-hidden
+              >
+                <rect x="0" y="8" width="2.5" height="4" rx="0.5" />
+                <rect x="4.5" y="6" width="2.5" height="6" rx="0.5" />
+                <rect x="9" y="3" width="2.5" height="9" rx="0.5" />
+                <rect x="13.5" y="0" width="2.5" height="12" rx="0.5" />
+              </svg>
+              <svg
+                className="h-3 w-3.5 text-foreground"
                 viewBox="0 0 16 12"
                 fill="currentColor"
                 aria-hidden
               >
-                <rect x="0" y="8" width="2" height="4" rx="0.5" />
-                <rect x="4" y="6" width="2" height="6" rx="0.5" />
-                <rect x="8" y="3" width="2" height="9" rx="0.5" />
-                <rect x="12" y="0" width="2" height="12" rx="0.5" />
+                <path d="M8 9.5l-2-2 0.7-0.7L8 8.1l1.3-1.3 0.7 0.7zM4 5.5L2.7 4.2C4.1 2.8 6 2 8 2s3.9 0.8 5.3 2.2L12 5.5C10.9 4.4 9.5 3.8 8 3.8S5.1 4.4 4 5.5z" />
               </svg>
-              {/* Battery */}
               <svg
-                className="h-2.5 w-5 text-foreground"
+                className="h-3 w-6 text-foreground"
                 viewBox="0 0 25 12"
                 fill="none"
                 aria-hidden
@@ -1618,20 +1624,30 @@ function PhoneFrame({ children }: { children: ReactNode }) {
                   height="11"
                   rx="2.5"
                   stroke="currentColor"
-                  strokeOpacity="0.5"
+                  strokeOpacity="0.55"
                 />
                 <rect x="2" y="2" width="14" height="8" rx="1" fill="currentColor" />
-                <rect x="22" y="4" width="2" height="4" rx="0.5" fill="currentColor" opacity="0.5" />
+                <rect
+                  x="22"
+                  y="4"
+                  width="2"
+                  height="4"
+                  rx="0.5"
+                  fill="currentColor"
+                  opacity="0.55"
+                />
               </svg>
             </div>
+            {/* Dynamic Island — long horizontal pill, centered */}
+            <div className="pointer-events-none absolute left-1/2 top-2 h-[26px] w-[110px] -translate-x-1/2 rounded-full bg-black" />
           </div>
 
           {/* Bot identity bar */}
-          <div className="flex items-center justify-between border-b border-border/60 bg-surface px-4 py-2.5">
+          <div className="mt-4 flex items-center justify-between border-b border-border/50 px-4 pb-2.5">
             <div className="flex items-center gap-2.5">
-              <div className="flex h-7 w-7 items-center justify-center rounded-full bg-[#229ED9]/15">
+              <div className="flex h-8 w-8 items-center justify-center rounded-full bg-[#229ED9]/15">
                 <svg
-                  className="h-3.5 w-3.5 text-[#229ED9]"
+                  className="h-4 w-4 text-[#229ED9]"
                   viewBox="0 0 24 24"
                   fill="currentColor"
                   aria-hidden
@@ -1640,21 +1656,23 @@ function PhoneFrame({ children }: { children: ReactNode }) {
                 </svg>
               </div>
               <div className="flex flex-col">
-                <span className="text-[11px] font-semibold leading-tight">
+                <span className="text-[12px] font-semibold leading-tight">
                   Orbit
                 </span>
-                <span className="text-[9px] leading-tight text-muted-foreground">
+                <span className="text-[10px] leading-tight text-muted-foreground">
                   @orbit101bot · online
                 </span>
               </div>
             </div>
           </div>
 
-          {children}
+          {/* Body — children render here, taking remaining vertical
+              space so different stages don't snap-collapse the frame. */}
+          <div className="flex flex-1 flex-col">{children}</div>
 
           {/* Home indicator */}
-          <div className="flex justify-center bg-surface py-2">
-            <div className="h-1 w-24 rounded-full bg-foreground/30" />
+          <div className="flex justify-center pb-2 pt-1.5">
+            <div className="h-1 w-28 rounded-full bg-foreground/30" />
           </div>
         </div>
       </div>
@@ -1982,7 +2000,7 @@ function TelegramSection() {
 
           {/* Right — phone mockup that crossfades through stages */}
           <div className="relative flex items-center justify-center">
-            <div className="relative h-[520px] w-full max-w-[360px]">
+            <div className="relative h-[660px] w-[320px]">
               {TELEGRAM_STEPS.map((s, i) => (
                 <div
                   key={s.n}
