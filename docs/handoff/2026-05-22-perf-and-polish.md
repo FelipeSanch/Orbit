@@ -1,5 +1,11 @@
 # Handoff — perf, passkeys, README
 
+> **Superseded by `2026-05-22-coordinate-mode-decision.md`.** Kept as a
+> timeline marker — describes the state at the start of the validation
+> session, before route mode's cross-domain limitations and Anthropic
+> overload behavior forced the architecture decision. Read that file
+> first; this one is for context decay.
+
 Status: production deploy is live and the OAuth gauntlet is done — sign-in (email/Google/Microsoft) and Hub data-scope connections (Microsoft 365 + Google Calendar) all work end-to-end on `https://orbit-ruby-one.vercel.app`. This conversation got long; the next chat picks up here cold.
 
 ## What just happened (this session, ~30 commits)

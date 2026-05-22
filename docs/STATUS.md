@@ -1,13 +1,11 @@
 # Orbit — Project Status
 
-Last updated: 2026-05-21 (post Telegram pivot)
+Last updated: 2026-05-22 (post Phase 1.2 validation + coordinate-mode decision)
 
 > Big architectural changes are tracked separately in `docs/ARCHITECTURE_CHANGES.md`.
+> **Active session state** lives in `docs/handoff/2026-05-22-coordinate-mode-decision.md` — read that first if you're picking up live work.
 
-**Where we are right now**: Phase 1–3 substantially complete. Phase 4 pivoted
-from SMS/Twilio (TFV-gated, plain-text-only) to **Telegram** — code shipped,
-local-tested. Phase 5 landed early with Google Calendar as a parallel-to-Outlook
-integration. Web dashboard is hosting-ready.
+**Where we are right now**: production deploy is live with auth + Telegram + Microsoft + Google Calendar integrations. A manual validation pass (Phase 1.2) surfaced two issues: (1) Anthropic Sonnet 4.6 has sustained overload windows that survive `max_retries=5` — addressed with a per-turn `FallbackClaude` (Sonnet → Haiku) currently committed but not yet wired, and (2) Agno Team route mode architecturally can't deliver the README's cross-domain promises — decision is to switch to coordinate mode (in flight). Validation paused mid-stream pending those two fixes.
 
 ## What's Built and Working
 
@@ -29,7 +27,7 @@ integration. Web dashboard is hosting-ready.
 - **Conversation history**: Sidebar lists all previous conversations (fetched from API), click to load messages, auto-refreshes after streaming. Chat header shows conversation title.
 - **Activity feed**: Real-time tool calls, delegations, approvals with colored icons per event type, timeline connectors, stats bar
 - **Approval cards**: Shown inline when write tools need confirmation
-- **Settings page**: Profile section, Microsoft 365 integration card (connect/disconnect), Google Workspace "coming soon", timezone/theme preferences, about section
+- **Settings page**: Profile section, timezone/theme preferences, daily usage card, "What Orbit remembers" memory viewer + per-row delete, about section. Integrations live in the separate **Hub** page (Microsoft 365 + Google Calendar + Telegram all wired with connect/disconnect; Gmail/Notion/Slack/GitHub cards exist as "coming soon").
 - **Activity page**: Standalone page with stats bar and full activity feed
 - **Auth**: Better Auth email+password, login page, auth provider, middleware guard
 - **Layout**: Sidebar (logo links to landing, new chat button, nav items, conversation list, connection status, user info, sign out button) + main content area with border
@@ -76,14 +74,15 @@ integration. Web dashboard is hosting-ready.
 - **Agno memory + history**: orchestrator has `update_memory_on_run=True`, `add_history_to_context=True`, `num_history_runs=5` so "I prefer morning meetings" can persist across sessions.
 - **Token cost tracking**: event translator captures `metrics` from `RunCompletedEvent`, chat & approve routes persist them in `messages.metadata.metrics` (input/output/total tokens).
 - **Activity feed polish**: tool calls color-coded by domain (email=sky, calendar=emerald, tasks=amber). Approval events colored (required=amber, approved=emerald, rejected=red), delegations=violet.
-- **Orchestrator instructions hardened**: execute immediately when all required params provided, never re-ask for user-omitted fields, cross-domain queries delegate sequentially + synthesize with prioritization (urgent emails → today's meetings → overdue tasks).
+- **Orchestrator instructions hardened**: execute immediately when all required params provided, never re-ask for user-omitted fields. (Cross-domain "delegate sequentially + synthesize" wording is currently wishful — route mode delivers exactly one specialist per turn. Coordinate-mode switch in flight; see active handoff.)
 - **Phase 1 bug fixes**:
   - `tools/tasks.py`: `get_task`/`update_task`/`complete_task`/`delete_task` now default `task_list_id` to the user's default folder.
   - `tools/calendar.py`: `list_events` today-filter no longer excludes events that cross midnight.
 
 ### Remaining Phase 2 items
-- [ ] Cross-tool synthesis end-to-end test ("Find action items in my recent emails and create tasks for them")
+- [ ] Cross-tool synthesis end-to-end test ("Find action items in my recent emails and create tasks for them") — **blocked on coordinate-mode switch**; route mode can't deliver this.
 - [ ] Browser test: reject flow → agent acknowledges no action taken
+- [ ] Full manual validation pass on the shipped tool surface — paused mid-stream (see handoff). Verified so far: `search_emails` ✓, `list_emails` ✓ (warm path), provider citation in replies ✓. Blocked: `get_email` perf retest, `get_attachments`, all writes, calendar tools, all tasks tools, cross-domain.
 
 ### Phase 3 progress
 - [x] Conversation history sidebar
