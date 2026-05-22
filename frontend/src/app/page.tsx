@@ -1940,68 +1940,18 @@ function TelegramSection() {
   }, [onScroll]);
 
   return (
-    <>
-      {/* Mobile: simple stacked walkthrough, no scroll-hijack. */}
-      <section className="border-t border-border/40 px-6 py-16 md:hidden">
-        <div className="mx-auto flex max-w-md flex-col gap-12">
-          <div className="flex flex-col items-start gap-3">
-            <span className="inline-flex items-center gap-1.5 rounded-full border border-accent/30 bg-accent/10 px-3 py-1 text-[11px] font-medium text-accent">
-              <svg
-                className="h-3 w-3"
-                viewBox="0 0 24 24"
-                fill="currentColor"
-                aria-hidden
-              >
-                <path d="M22 2L2 10l7 2.5L19 5l-7 9 2.5 7L22 2z" />
-              </svg>
-              Telegram peer channel
-            </span>
-            <h2 className="text-3xl font-bold tracking-tight">
-              Carry Orbit in your pocket
-            </h2>
-            <p className="text-sm leading-relaxed text-muted-foreground">
-              Three steps. One-time setup. Then Orbit lives wherever
-              you already chat.
-            </p>
-          </div>
-
-          {TELEGRAM_STEPS.map((s) => (
-            <div key={s.n} className="flex flex-col items-start gap-4">
-              <div className="flex items-start gap-3">
-                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-accent/15 text-[14px] font-semibold text-accent">
-                  {s.n}
-                </div>
-                <div className="flex flex-col gap-1">
-                  <span className="font-mono text-[10px] tracking-widest text-accent uppercase">
-                    Step {s.n} / {s.tag}
-                  </span>
-                  <h3 className="text-lg font-semibold text-foreground">
-                    {s.title}
-                  </h3>
-                  <p className="text-sm leading-relaxed text-muted-foreground">
-                    {s.copy}
-                  </p>
-                </div>
-              </div>
-              {/* Scale the iPhone mockup down on mobile so it fits */}
-              <div className="w-full origin-top scale-[0.85] sm:scale-95">
-                {s.mockup}
-              </div>
-            </div>
-          ))}
-        </div>
-      </section>
-
-      {/* Desktop: scroll-hijack walkthrough. */}
-      <section
-        ref={containerRef}
-        className="hidden border-t border-border/40 md:block"
-        style={{
-          height: `${(TELEGRAM_STEPS.length + 1) * 100}vh`,
-        }}
-      >
-      <div className="sticky top-0 flex h-screen items-center pt-16">
-        <div className="mx-auto grid w-full max-w-6xl items-center gap-12 px-6 md:grid-cols-[1fr_1.1fr] md:gap-16">
+    <section
+      ref={containerRef}
+      className="border-t border-border/40"
+      style={{
+        // svh accounts for mobile address-bar collapse — using 100vh
+        // here caused the sticky inner to jump as Safari's chrome
+        // re-flowed. With svh the visible height stays stable.
+        height: `${(TELEGRAM_STEPS.length + 1) * 100}svh`,
+      }}
+    >
+      <div className="sticky top-0 flex h-[100svh] flex-col justify-center px-4 py-6 sm:pt-16 md:flex-row md:items-center md:px-6">
+        <div className="mx-auto grid w-full max-w-6xl items-center gap-6 md:grid-cols-[1fr_1.1fr] md:gap-16">
           {/* Left — step labels (crossfade through them) */}
           <div className="flex flex-col justify-center">
             <span className="inline-flex w-fit items-center gap-1.5 rounded-full border border-accent/30 bg-accent/10 px-3 py-1 text-[11px] font-medium text-accent">
@@ -2015,16 +1965,16 @@ function TelegramSection() {
               </svg>
               Telegram peer channel
             </span>
-            <h2 className="mt-4 text-3xl font-bold tracking-tight sm:text-5xl">
+            <h2 className="mt-3 text-2xl font-bold tracking-tight sm:mt-4 sm:text-3xl md:text-5xl">
               Carry Orbit in your pocket
             </h2>
-            <p className="mt-3 max-w-md text-sm leading-relaxed text-muted-foreground sm:text-base">
+            <p className="mt-2 max-w-md text-[13px] leading-relaxed text-muted-foreground sm:mt-3 sm:text-sm md:text-base">
               Three steps. One-time setup. Then Orbit lives wherever
               you already chat.
             </p>
 
             {/* Active step (crossfade) */}
-            <div className="relative mt-10 min-h-[140px]">
+            <div className="relative mt-5 min-h-[100px] md:mt-10 md:min-h-[140px]">
               {TELEGRAM_STEPS.map((s, i) => (
                 <div
                   key={s.n}
@@ -2034,18 +1984,18 @@ function TelegramSection() {
                       : "pointer-events-none absolute inset-0 opacity-0"
                   }`}
                 >
-                  <div className="flex items-start gap-4">
-                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-accent/15 text-[16px] font-semibold text-accent">
+                  <div className="flex items-start gap-3 md:gap-4">
+                    <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-accent/15 text-[13px] font-semibold text-accent md:h-10 md:w-10 md:text-[16px]">
                       {s.n}
                     </div>
-                    <div className="flex flex-col gap-1.5">
-                      <span className="font-mono text-[10px] tracking-widest text-accent uppercase">
+                    <div className="flex flex-col gap-1">
+                      <span className="font-mono text-[9px] tracking-widest text-accent uppercase md:text-[10px]">
                         Step {s.n} / {s.tag}
                       </span>
-                      <h3 className="text-xl font-semibold text-foreground sm:text-2xl">
+                      <h3 className="text-base font-semibold text-foreground md:text-2xl">
                         {s.title}
                       </h3>
-                      <p className="max-w-md text-sm leading-relaxed text-muted-foreground">
+                      <p className="max-w-md text-[12px] leading-relaxed text-muted-foreground md:text-sm">
                         {s.copy}
                       </p>
                     </div>
@@ -2055,7 +2005,7 @@ function TelegramSection() {
             </div>
 
             {/* Progress indicators (clickable) */}
-            <div className="mt-10 flex items-center gap-3">
+            <div className="mt-5 flex items-center gap-3 md:mt-10">
               {TELEGRAM_STEPS.map((s, i) => (
                 <button
                   key={s.n}
@@ -2096,9 +2046,12 @@ function TelegramSection() {
             </div>
           </div>
 
-          {/* Right — phone mockup that crossfades through stages */}
+          {/* Right — phone mockup that crossfades through stages.
+              Smaller frame on mobile (origin-top scale) so the whole
+              section fits inside one 100svh viewport even with the
+              step copy + dots above/below. */}
           <div className="relative flex items-center justify-center">
-            <div className="relative h-[660px] w-[320px]">
+            <div className="relative h-[430px] w-[210px] origin-top sm:h-[520px] sm:w-[260px] md:h-[660px] md:w-[320px]">
               {TELEGRAM_STEPS.map((s, i) => (
                 <div
                   key={s.n}
@@ -2107,16 +2060,20 @@ function TelegramSection() {
                       ? "scale-100 opacity-100"
                       : "pointer-events-none scale-95 opacity-0"
                   }`}
+                  style={{
+                    transformOrigin: "top center",
+                  }}
                 >
-                  {s.mockup}
+                  <div className="origin-top scale-[0.66] sm:scale-[0.81] md:scale-100">
+                    {s.mockup}
+                  </div>
                 </div>
               ))}
             </div>
           </div>
         </div>
       </div>
-      </section>
-    </>
+    </section>
   );
 }
 
