@@ -424,11 +424,32 @@ async def translate_team_stream(
                 if event_type in ("RunErrorEvent", "TeamRunErrorEvent"):
                     error_msg = getattr(event, "content", "Unknown error")
                     logger.error("Run error: %s", error_msg)
-                    await out_queue.put(
-                        _err_envelope(
-                            "run_error",
-                            "The agent run failed. Please try again.",
+                    # Persist the actual message — the user-facing SSE
+                    # envelope is intentionally generic, but losing the
+                    # underlying error makes prod failures undebuggable.
+                    await activity_repo.create(
+                        user_id=user_id,
+                        conversation_id=conversation_id,
+                        event_type="run_error",
+                        event_data={
+                            "run_id": run_id,
+                            "event_class": event_type,
+                            "error": str(error_msg)[:2000],
+                        },
+                    )
+                    # Specific copy for transient Anthropic overloads so
+                    # users don't think the product is broken when the
+                    # upstream just hiccupped.
+                    err_str = str(error_msg).lower()
+                    if "overloaded" in err_str or "529" in err_str:
+                        user_message = (
+                            "Claude's API is briefly overloaded. "
+                            "Try the same message again in a few seconds."
                         )
+                    else:
+                        user_message = "The agent run failed. Please try again."
+                    await out_queue.put(
+                        _err_envelope("run_error", user_message)
                     )
                     continue
 

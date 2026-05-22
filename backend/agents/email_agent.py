@@ -17,7 +17,10 @@ def create_email_agent(
     """
     return Agent(
         name="Email Agent",
-        model=Claude(id="claude-sonnet-4-6"),
+        model=Claude(
+            id="claude-sonnet-4-6",
+            client_params={"max_retries": 5},
+        ),
         tools=tools,
         db=db,
         session_id=session_id,
