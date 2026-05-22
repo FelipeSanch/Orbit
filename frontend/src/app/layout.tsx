@@ -27,7 +27,20 @@ export default function RootLayout({
     <html
       lang="en"
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
+      suppressHydrationWarning
     >
+      <head>
+        {/* Apply the persisted theme synchronously, before React paints,
+            to avoid a "flash of wrong theme" on reload. Falls through to
+            the prefers-color-scheme media query when no preference is
+            set. Inline + suppressHydrationWarning above keep React from
+            warning about the class mismatch this introduces. */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `(function(){try{var t=localStorage.getItem('orbit:theme');if(t==='light'||t==='dark'){document.documentElement.classList.add(t);}}catch(e){}})();`,
+          }}
+        />
+      </head>
       <body className="bg-background text-foreground antialiased">
         <AuthProvider>{children}</AuthProvider>
       </body>

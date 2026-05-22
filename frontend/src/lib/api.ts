@@ -249,6 +249,36 @@ export interface UsageToday {
   daily_cap_usd: number;
 }
 
+export type Preferences = {
+  user_id?: string;
+  timezone: string;
+  default_calendar_id?: string | null;
+};
+
+export async function fetchPreferences(token: string): Promise<Preferences | null> {
+  const response = await safeFetch(`${env.apiUrl}/api/me/preferences`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  if (!response || !response.ok) return null;
+  return response.json();
+}
+
+export async function updatePreferences(
+  token: string,
+  patch: Partial<Pick<Preferences, "timezone">>,
+): Promise<Preferences | null> {
+  const response = await safeFetch(`${env.apiUrl}/api/me/preferences`, {
+    method: "PATCH",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify(patch),
+  });
+  if (!response || !response.ok) return null;
+  return response.json();
+}
+
 export async function fetchUsageToday(token: string): Promise<UsageToday | null> {
   const response = await safeFetch(`${env.apiUrl}/api/usage/today`, {
     headers: { Authorization: `Bearer ${token}` },

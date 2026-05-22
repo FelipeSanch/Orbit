@@ -7,10 +7,13 @@ import { env } from "@/lib/env";
 import {
   deleteMemory,
   fetchMemories,
+  fetchPreferences,
   fetchUsageToday,
+  updatePreferences,
   type UsageToday,
 } from "@/lib/api";
 import { useAuthStore } from "@/stores/auth-store";
+import { useTheme, type ThemePreference } from "@/lib/theme";
 
 function SettingsContent() {
   const session = useAuthStore((s) => s.session);
@@ -86,16 +89,25 @@ function SettingsContent() {
             </p>
 
             <div className="mt-4 flex items-center gap-4">
-              <div className="flex h-12 w-12 items-center justify-center rounded-full bg-accent/15 text-sm font-semibold text-accent">
-                {user?.name
-                  ? user.name
-                      .split(" ")
-                      .map((n) => n[0])
-                      .join("")
-                      .toUpperCase()
-                      .slice(0, 2)
-                  : user?.email?.charAt(0).toUpperCase() ?? "?"}
-              </div>
+              {user?.image ? (
+                <img
+                  src={user.image}
+                  alt=""
+                  referrerPolicy="no-referrer"
+                  className="h-12 w-12 rounded-full object-cover"
+                />
+              ) : (
+                <div className="flex h-12 w-12 items-center justify-center rounded-full bg-accent/15 text-sm font-semibold text-accent">
+                  {user?.name
+                    ? user.name
+                        .split(" ")
+                        .map((n) => n[0])
+                        .join("")
+                        .toUpperCase()
+                        .slice(0, 2)
+                    : user?.email?.charAt(0).toUpperCase() ?? "?"}
+                </div>
+              )}
               <div className="flex flex-col gap-0.5">
                 <span className="text-sm font-medium text-foreground">
                   {user?.name || "User"}
@@ -156,33 +168,8 @@ function SettingsContent() {
             </p>
 
             <div className="mt-4 flex flex-col gap-3">
-              <div className="flex items-center justify-between rounded-lg border border-border bg-surface-raised px-4 py-3">
-                <div>
-                  <span className="text-[13px] font-medium text-foreground">
-                    Timezone
-                  </span>
-                  <p className="text-[11px] text-muted-foreground">
-                    Used for calendar and task scheduling
-                  </p>
-                </div>
-                <span className="rounded-md bg-muted px-2.5 py-1 text-[12px] font-mono text-muted-foreground">
-                  {Intl.DateTimeFormat().resolvedOptions().timeZone}
-                </span>
-              </div>
-
-              <div className="flex items-center justify-between rounded-lg border border-border bg-surface-raised px-4 py-3">
-                <div>
-                  <span className="text-[13px] font-medium text-foreground">
-                    Theme
-                  </span>
-                  <p className="text-[11px] text-muted-foreground">
-                    Follows your system preference
-                  </p>
-                </div>
-                <span className="rounded-md bg-muted px-2.5 py-1 text-[12px] text-muted-foreground">
-                  System
-                </span>
-              </div>
+              <TimezoneRow />
+              <ThemeRow />
             </div>
           </div>
 
@@ -330,6 +317,109 @@ function SettingsContent() {
           </div>
         </div>
       </div>
+    </div>
+  );
+}
+
+function ThemeRow() {
+  const { theme, setTheme } = useTheme();
+  const options: { value: ThemePreference; label: string }[] = [
+    { value: "light", label: "Light" },
+    { value: "dark", label: "Dark" },
+    { value: "system", label: "System" },
+  ];
+  return (
+    <div className="flex items-center justify-between rounded-lg border border-border bg-surface-raised px-4 py-3">
+      <div>
+        <span className="text-[13px] font-medium text-foreground">Theme</span>
+        <p className="text-[11px] text-muted-foreground">
+          Light, dark, or follow your system
+        </p>
+      </div>
+      <div className="flex gap-0.5 rounded-md bg-muted p-0.5">
+        {options.map((o) => (
+          <button
+            key={o.value}
+            type="button"
+            onClick={() => setTheme(o.value)}
+            className={`cursor-pointer rounded px-2 py-1 text-[11px] font-medium transition-colors ${
+              theme === o.value
+                ? "bg-surface text-foreground shadow-sm"
+                : "text-muted-foreground hover:text-foreground"
+            }`}
+            aria-pressed={theme === o.value}
+          >
+            {o.label}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function TimezoneRow() {
+  // Backed by user_preferences.timezone in Postgres. The browser-
+  // detected value is the initial default until the server's stored
+  // value loads (typically a single round-trip on mount).
+  const session = useAuthStore((s) => s.session);
+  const detected = Intl.DateTimeFormat().resolvedOptions().timeZone;
+  const [tz, setTz] = useState<string>(detected);
+  useEffect(() => {
+    if (!session?.token) return;
+    fetchPreferences(session.token).then((p) => {
+      if (p?.timezone) setTz(p.timezone);
+    });
+  }, [session?.token]);
+  const updateTz = (next: string) => {
+    setTz(next);
+    if (!session?.token) return;
+    updatePreferences(session.token, { timezone: next });
+  };
+  // Curated list — covers the broad strokes without the 400-entry IANA
+  // dump. "Browser detected" always present so the user can return to
+  // the auto default without remembering their zone.
+  const choices = Array.from(
+    new Set([
+      detected,
+      "America/Los_Angeles",
+      "America/Denver",
+      "America/Chicago",
+      "America/New_York",
+      "America/Sao_Paulo",
+      "Europe/London",
+      "Europe/Paris",
+      "Europe/Berlin",
+      "Europe/Madrid",
+      "Asia/Dubai",
+      "Asia/Kolkata",
+      "Asia/Singapore",
+      "Asia/Tokyo",
+      "Australia/Sydney",
+      "UTC",
+    ]),
+  );
+  return (
+    <div className="flex items-center justify-between rounded-lg border border-border bg-surface-raised px-4 py-3">
+      <div>
+        <span className="text-[13px] font-medium text-foreground">
+          Timezone
+        </span>
+        <p className="text-[11px] text-muted-foreground">
+          Used for calendar and task scheduling
+        </p>
+      </div>
+      <select
+        value={tz}
+        onChange={(e) => updateTz(e.target.value)}
+        className="cursor-pointer rounded-md border border-border bg-surface px-2 py-1 font-mono text-[11px] text-foreground transition-colors hover:border-muted-foreground/30 focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent"
+        aria-label="Timezone"
+      >
+        {choices.map((c) => (
+          <option key={c} value={c}>
+            {c}
+          </option>
+        ))}
+      </select>
     </div>
   );
 }

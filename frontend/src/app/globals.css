@@ -28,8 +28,10 @@
   --font-mono: var(--font-geist-mono);
 }
 
+/* System-preference fallback. Skipped when JS pins an explicit theme
+   via the .light / .dark class on <html> (see useTheme hook). */
 @media (prefers-color-scheme: dark) {
-  :root {
+  :root:not(.light):not(.dark) {
     --background: #0b0f1a;
     --foreground: #e2e8f0;
     --muted: #1e293b;
@@ -42,6 +44,22 @@
     --surface-raised: #0f172a;
   }
 }
+
+/* Explicit overrides — same values, applied unconditionally when the
+   class is present. */
+.dark {
+  --background: #0b0f1a;
+  --foreground: #e2e8f0;
+  --muted: #1e293b;
+  --muted-foreground: #94a3b8;
+  --border: #1e293b;
+  --accent: #818cf8;
+  --accent-foreground: #ffffff;
+  --accent-muted: #1e1b4b;
+  --surface: #0b0f1a;
+  --surface-raised: #0f172a;
+}
+/* .light intentionally inherits the :root defaults — no extra rules needed. */
 
 html {
   scroll-behavior: smooth;
