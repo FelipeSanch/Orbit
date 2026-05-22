@@ -19,7 +19,7 @@ export function CosmicFrame() {
   return (
     <>
       <div
-        className="pointer-events-none absolute inset-0 bg-[#0a0a0c]"
+        className="pointer-events-none absolute inset-0 bg-[#0e0f14]"
         aria-hidden
       />
       <div

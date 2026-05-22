@@ -6,9 +6,12 @@
   --muted: #f1f5f9;
   --muted-foreground: #64748b;
   --border: #e2e8f0;
-  --accent: #6366f1;
+  /* Accent — violet 500 family. Picked over the prior indigo-500 to land
+     closer to the Railway-style purple Felipe pointed at; reads more
+     "product brand" than "default Tailwind blue-purple." */
+  --accent: #8b5cf6;
   --accent-foreground: #ffffff;
-  --accent-muted: #eef2ff;
+  --accent-muted: #f3e8ff;
   --surface: #ffffff;
   --surface-raised: #f8fafc;
 }
