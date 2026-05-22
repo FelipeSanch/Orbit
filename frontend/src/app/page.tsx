@@ -1569,6 +1569,194 @@ function HowItWorksSection() {
   );
 }
 
+// ─── Telegram peer channel showcase ──────────────────────────────────
+
+function TelegramChatMockup() {
+  return (
+    <div className="relative mx-auto w-full max-w-[340px] overflow-hidden rounded-[28px] border border-border bg-surface-raised shadow-2xl shadow-accent/10">
+      {/* Phone chrome */}
+      <div className="flex items-center justify-between border-b border-border/60 bg-surface px-4 py-3">
+        <div className="flex items-center gap-2.5">
+          <div className="flex h-8 w-8 items-center justify-center rounded-full bg-[#229ED9]/15">
+            <svg
+              className="h-4 w-4 text-[#229ED9]"
+              viewBox="0 0 24 24"
+              fill="currentColor"
+              aria-hidden
+            >
+              <path d="M22 2L2 10l7 2.5L19 5l-7 9 2.5 7L22 2z" />
+            </svg>
+          </div>
+          <div className="flex flex-col">
+            <span className="text-[12px] font-semibold leading-tight">
+              Orbit
+            </span>
+            <span className="text-[10px] leading-tight text-muted-foreground">
+              @orbit101bot
+            </span>
+          </div>
+        </div>
+        <div className="flex items-center gap-1">
+          <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
+          <span className="text-[10px] text-muted-foreground">online</span>
+        </div>
+      </div>
+
+      {/* Messages */}
+      <div className="flex flex-col gap-2 px-3 py-4">
+        <div className="flex justify-end">
+          <div className="max-w-[80%] rounded-2xl rounded-tr-md bg-accent px-3 py-2 text-[12px] text-accent-foreground">
+            what&apos;s on my calendar today?
+          </div>
+        </div>
+        <div className="flex justify-start">
+          <div className="max-w-[80%] rounded-2xl rounded-tl-md bg-muted px-3 py-2 text-[12px] text-foreground">
+            Nothing on your Google Calendar today — clear day.
+          </div>
+        </div>
+        <div className="flex justify-end">
+          <div className="max-w-[80%] rounded-2xl rounded-tr-md bg-accent px-3 py-2 text-[12px] text-accent-foreground">
+            send Sarah a note: I&apos;ll review the deck by Friday
+          </div>
+        </div>
+        <div className="flex justify-start">
+          <div className="flex max-w-[88%] flex-col gap-1.5 rounded-2xl rounded-tl-md bg-muted px-3 py-2.5">
+            <div className="text-[11px] font-medium text-muted-foreground">
+              📧 Send email to sarah@stripe.com
+            </div>
+            <div className="text-[11px] text-foreground/90">
+              Subject: Re: Q3 deck review
+            </div>
+            <div className="text-[11px] text-muted-foreground/80">
+              I&apos;ll review the deck by Friday and send notes.
+            </div>
+            <div className="mt-1 flex gap-1.5">
+              <button
+                type="button"
+                className="flex-1 rounded-lg bg-emerald-500/15 px-2 py-1 text-[11px] font-medium text-emerald-500"
+              >
+                ✅ Send
+              </button>
+              <button
+                type="button"
+                className="flex-1 rounded-lg bg-muted-foreground/10 px-2 py-1 text-[11px] font-medium text-muted-foreground"
+              >
+                ❌ Reject
+              </button>
+            </div>
+          </div>
+        </div>
+        <div className="flex justify-start">
+          <div className="max-w-[60%] rounded-2xl rounded-tl-md bg-muted px-3 py-2 text-[12px] text-muted-foreground">
+            Sent. ✔
+          </div>
+        </div>
+      </div>
+
+      {/* Composer hint */}
+      <div className="border-t border-border/60 bg-surface px-3 py-2.5">
+        <div className="flex items-center gap-2 rounded-full bg-muted px-3 py-1.5">
+          <span className="text-[11px] text-muted-foreground/70">
+            Message
+          </span>
+          <span className="ml-auto text-[10px] text-muted-foreground/40">
+            ↵
+          </span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function TelegramSection() {
+  const steps = [
+    {
+      n: "1",
+      title: "Open the Hub",
+      copy: "Settings → Hub → Telegram. Tap Pair to generate a one-time code.",
+    },
+    {
+      n: "2",
+      title: "Message the bot",
+      copy: "Open @orbit101bot in Telegram, send /start <code>. The chat binds to your Orbit account.",
+    },
+    {
+      n: "3",
+      title: "Talk to Orbit anywhere",
+      copy: "Same agents, same memory, same approvals — now reachable from your phone with inline ✅ / ❌ buttons on every write.",
+    },
+  ];
+  return (
+    <section className="border-t border-border/40 px-6 py-32">
+      <div className="mx-auto max-w-6xl">
+        <Reveal>
+          <div className="flex flex-col items-center text-center">
+            <span className="inline-flex items-center gap-1.5 rounded-full border border-accent/30 bg-accent/10 px-3 py-1 text-[11px] font-medium text-accent">
+              <svg
+                className="h-3 w-3"
+                viewBox="0 0 24 24"
+                fill="currentColor"
+                aria-hidden
+              >
+                <path d="M22 2L2 10l7 2.5L19 5l-7 9 2.5 7L22 2z" />
+              </svg>
+              Telegram peer channel
+            </span>
+            <h2 className="mt-4 text-3xl font-bold tracking-tight sm:text-5xl">
+              Carry Orbit in your pocket
+            </h2>
+            <p className="mt-4 max-w-2xl text-base text-muted-foreground sm:text-lg">
+              Pair your Telegram once. Free-text the same agents.
+              Approve writes with a tap. Same memory and the same
+              approval flow as the dashboard — surfaced wherever you
+              already chat.
+            </p>
+          </div>
+        </Reveal>
+
+        <div className="mt-16 grid grid-cols-1 items-center gap-16 lg:grid-cols-2">
+          <Reveal delay={0.1}>
+            <TelegramChatMockup />
+          </Reveal>
+          <Reveal delay={0.2}>
+            <div className="flex flex-col gap-6">
+              {steps.map((s) => (
+                <div key={s.n} className="flex items-start gap-4">
+                  <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-accent/30 bg-accent/10 text-[14px] font-semibold text-accent">
+                    {s.n}
+                  </div>
+                  <div className="flex flex-col gap-1">
+                    <h3 className="text-base font-semibold text-foreground">
+                      {s.title}
+                    </h3>
+                    <p className="text-sm leading-relaxed text-muted-foreground">
+                      {s.copy}
+                    </p>
+                  </div>
+                </div>
+              ))}
+              <div className="mt-2 flex flex-wrap items-center gap-2 rounded-2xl border border-border bg-surface-raised/60 px-4 py-3">
+                <span className="text-[12px] font-medium text-foreground">
+                  Why it matters
+                </span>
+                <span className="text-[12px] text-muted-foreground">
+                  · Triage emails while you commute
+                </span>
+                <span className="text-[12px] text-muted-foreground">
+                  · Approve a calendar invite from bed
+                </span>
+                <span className="text-[12px] text-muted-foreground">
+                  · Same brain, smaller surface
+                </span>
+              </div>
+            </div>
+          </Reveal>
+        </div>
+      </div>
+    </section>
+  );
+}
+
 // ─── Transparency / Activity feed showcase ───────────────────────────
 
 // Lifecycle of a real Orbit request, in the order the activity feed
@@ -2104,6 +2292,7 @@ export default function LandingPage() {
         <HeroSection />
         <DemoSection />
         <HowItWorksSection />
+        <TelegramSection />
         <TransparencySection />
         <TrustSection />
         <CTASection />
