@@ -74,6 +74,30 @@ export function Sidebar() {
   const [renameValue, setRenameValue] = useState("");
   const menuWrapRef = useRef<HTMLDivElement | null>(null);
 
+  // Manual collapse toggle (separate from the existing responsive
+  // narrow-on-<lg behavior). Persisted in localStorage so the choice
+  // survives reload. data-collapsed on the <aside> drives every
+  // label/section's visibility via group-data-* Tailwind variants
+  // (search this file for `group-data-[collapsed=true]`).
+  const [collapsed, setCollapsed] = useState(false);
+  useEffect(() => {
+    try {
+      setCollapsed(localStorage.getItem("orbit:sidebar-collapsed") === "1");
+    } catch {
+      // localStorage unavailable (private mode, SSR) — fall back to expanded.
+    }
+  }, []);
+  useEffect(() => {
+    try {
+      localStorage.setItem(
+        "orbit:sidebar-collapsed",
+        collapsed ? "1" : "0",
+      );
+    } catch {
+      // ignore
+    }
+  }, [collapsed]);
+
   // Close menu when clicking outside
   useEffect(() => {
     if (!openMenuId) return;
@@ -198,23 +222,59 @@ export function Sidebar() {
     : user?.email?.charAt(0).toUpperCase() ?? "?";
 
   return (
-    <aside className="flex h-full w-16 flex-col bg-surface lg:w-64">
-      {/* Logo (links to landing page) + New Chat */}
+    <aside
+      data-collapsed={collapsed ? "true" : "false"}
+      className="group/sidebar flex h-full w-16 flex-col bg-surface data-[collapsed=false]:lg:w-64"
+    >
+      {/* Logo (links to landing page) + collapse toggle + New Chat */}
       <div className="flex flex-col gap-3 p-3 pb-2">
-        <Link
-          href="/"
-          className="flex items-center gap-2.5 rounded-lg px-2 py-1 transition-colors hover:bg-muted"
-          title="Back to home"
-        >
-          <OrbitLogo size={26} />
-          <span className="hidden text-[15px] font-semibold tracking-tight text-foreground lg:block">
-            Orbit
-          </span>
-        </Link>
+        <div className="flex items-center justify-between gap-1">
+          <Link
+            href="/"
+            className="flex min-w-0 flex-1 items-center gap-2.5 rounded-lg px-2 py-1 transition-colors hover:bg-muted"
+            title="Back to home"
+          >
+            <OrbitLogo size={26} />
+            <span className="hidden truncate text-[15px] font-semibold tracking-tight text-foreground group-data-[collapsed=false]/sidebar:lg:block">
+              Orbit
+            </span>
+          </Link>
+          {/* Collapse toggle. Only on lg+ — mobile is already locked to
+              the icon-only width so a manual toggle would be a no-op. */}
+          <button
+            type="button"
+            onClick={() => setCollapsed((c) => !c)}
+            className="hidden h-7 w-7 shrink-0 cursor-pointer items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground lg:flex"
+            aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
+            title={collapsed ? "Expand sidebar" : "Collapse sidebar"}
+          >
+            <svg
+              className="h-4 w-4"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+              strokeWidth={2}
+            >
+              {collapsed ? (
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  d="M8.25 4.5l7.5 7.5-7.5 7.5"
+                />
+              ) : (
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  d="M15.75 19.5L8.25 12l7.5-7.5"
+                />
+              )}
+            </svg>
+          </button>
+        </div>
 
         <button
           onClick={handleNewChat}
-          className="flex h-9 w-full cursor-pointer items-center justify-center gap-2 rounded-lg border border-border bg-surface-raised text-sm font-medium text-foreground transition-all duration-150 hover:bg-muted hover:border-muted-foreground/20 active:scale-[0.98] lg:justify-start lg:px-3"
+          className="flex h-9 w-full cursor-pointer items-center justify-center gap-2 rounded-lg border border-border bg-surface-raised text-sm font-medium text-foreground transition-all duration-150 hover:bg-muted hover:border-muted-foreground/20 active:scale-[0.98] group-data-[collapsed=false]/sidebar:lg:justify-start group-data-[collapsed=false]/sidebar:lg:px-3"
         >
           <svg
             className="h-4 w-4 shrink-0"
@@ -229,7 +289,7 @@ export function Sidebar() {
               d="M12 4.5v15m7.5-7.5h-15"
             />
           </svg>
-          <span className="hidden lg:block">New Chat</span>
+          <span className="hidden group-data-[collapsed=false]/sidebar:lg:block">New Chat</span>
         </button>
       </div>
 
@@ -262,7 +322,7 @@ export function Sidebar() {
                   d={item.icon}
                 />
               </svg>
-              <span className="hidden lg:block">{item.label}</span>
+              <span className="hidden group-data-[collapsed=false]/sidebar:lg:block">{item.label}</span>
             </Link>
           );
         })}
@@ -271,14 +331,14 @@ export function Sidebar() {
       {/* Conversation History */}
       <div className="mx-3 border-t border-border" />
       <div className="flex min-h-0 flex-1 flex-col">
-        <div className="hidden px-5 pt-3 pb-1.5 lg:block">
+        <div className="hidden px-5 pt-3 pb-1.5 group-data-[collapsed=false]/sidebar:lg:block">
           <span className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground/70">
             Recent
           </span>
         </div>
         <div className="flex-1 overflow-y-auto px-3 py-1">
           {conversations.length === 0 ? (
-            <div className="hidden px-2 py-6 lg:block">
+            <div className="hidden px-2 py-6 group-data-[collapsed=false]/sidebar:lg:block">
               <p className="text-center text-[11px] leading-relaxed text-muted-foreground/50">
                 Your conversations will appear here
               </p>
@@ -291,7 +351,7 @@ export function Sidebar() {
                   <div
                     key={conv.id}
                     onClick={() => handleSelectConversation(conv.id)}
-                    className={`group hidden w-full cursor-pointer items-center gap-2 rounded-lg px-2.5 py-2 text-left transition-all duration-150 lg:flex ${
+                    className={`group hidden w-full cursor-pointer items-center gap-2 rounded-lg px-2.5 py-2 text-left transition-all duration-150 group-data-[collapsed=false]/sidebar:lg:flex ${
                       isActive
                         ? "bg-accent/10 text-accent"
                         : "text-muted-foreground hover:bg-muted hover:text-foreground"
@@ -436,7 +496,7 @@ export function Sidebar() {
       {/* Bottom: Connection Status + User */}
       <div className="flex flex-col gap-1 border-t border-border p-3">
         {/* Integration indicators */}
-        <div className="hidden flex-col gap-1 px-2.5 py-1.5 lg:flex">
+        <div className="hidden flex-col gap-1 px-2.5 py-1.5 group-data-[collapsed=false]/sidebar:lg:flex">
           <div className="flex items-center gap-2">
             <div
               className={`h-1.5 w-1.5 rounded-full ${
@@ -486,7 +546,7 @@ export function Sidebar() {
               {initials}
             </div>
           )}
-          <div className="hidden min-w-0 flex-1 lg:block">
+          <div className="hidden min-w-0 flex-1 group-data-[collapsed=false]/sidebar:lg:block">
             <p className="truncate text-[13px] font-medium text-foreground">
               {user?.name || "User"}
             </p>
@@ -499,7 +559,7 @@ export function Sidebar() {
         {/* Sign out button */}
         <button
           onClick={handleSignOut}
-          className="flex h-9 w-full cursor-pointer items-center justify-center gap-2 rounded-lg px-2.5 text-[13px] text-muted-foreground transition-all duration-150 hover:bg-muted hover:text-foreground lg:justify-start"
+          className="flex h-9 w-full cursor-pointer items-center justify-center gap-2 rounded-lg px-2.5 text-[13px] text-muted-foreground transition-all duration-150 hover:bg-muted hover:text-foreground group-data-[collapsed=false]/sidebar:lg:justify-start"
         >
           <svg
             className="h-4 w-4 shrink-0"
@@ -514,7 +574,7 @@ export function Sidebar() {
               d="M15.75 9V5.25A2.25 2.25 0 0013.5 3h-6a2.25 2.25 0 00-2.25 2.25v13.5A2.25 2.25 0 007.5 21h6a2.25 2.25 0 002.25-2.25V15m3 0l3-3m0 0l-3-3m3 3H9"
             />
           </svg>
-          <span className="hidden lg:block">Sign out</span>
+          <span className="hidden group-data-[collapsed=false]/sidebar:lg:block">Sign out</span>
         </button>
       </div>
     </aside>
