@@ -81,6 +81,27 @@ export const auth = betterAuth({
     },
   },
 
+  // Mark email/password signups as verified at creation. We don't run
+  // any email-verification flow on this deploy (no SMTP), so leaving
+  // emailVerified=false silently blocks later "Continue with Google /
+  // Microsoft" linking — the link path requires the existing user's
+  // email to be verified, otherwise Better Auth refuses and the social
+  // sign-in lands on a fresh user with no integrations/conversations.
+  // Reproduced once: sign up via email, connect Microsoft + Google,
+  // sign out, sign back in via Google → "?" avatar, 0 conversations,
+  // 0 integrations. Setting emailVerified=true at creation keeps the
+  // same user across sign-out/sign-in even when the user switches
+  // auth mechanism.
+  databaseHooks: {
+    user: {
+      create: {
+        before: async (user) => ({
+          data: { ...user, emailVerified: true },
+        }),
+      },
+    },
+  },
+
   // Conditional spread — including a provider with empty credentials
   // would cause Better Auth to throw at startup. The login UI also
   // checks /api/auth/get-session-providers-style flags via NEXT_PUBLIC
