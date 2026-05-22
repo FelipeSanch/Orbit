@@ -172,7 +172,10 @@ export function ChatInput({
   ];
 
   return (
-    <div className="shrink-0 border-t border-border bg-surface px-4 py-3 sm:px-6">
+    // Floating composer — Claude-style. No top border, no full-width
+    // chrome bar. Sits over the chat with breathing room on all sides
+    // so it reads as an inviting target instead of a sealed footer.
+    <div className="shrink-0 px-4 pb-4 sm:px-6 sm:pb-5">
       <div className="mx-auto max-w-3xl">
         {/* Attachment chips */}
         {attachments.length > 0 && (
@@ -220,7 +223,7 @@ export function ChatInput({
           </div>
         )}
 
-        <div className="relative flex items-end gap-2 rounded-xl border border-border bg-surface-raised p-1.5 transition-all duration-150 focus-within:border-accent/40 focus-within:ring-2 focus-within:ring-accent/10">
+        <div className="relative flex items-end gap-2 rounded-3xl border border-border bg-surface-raised p-2 shadow-lg shadow-black/5 transition-all duration-150 focus-within:border-accent/40 focus-within:ring-2 focus-within:ring-accent/10">
           {/* Hidden file input */}
           <input
             ref={fileInputRef}
@@ -331,7 +334,7 @@ export function ChatInput({
             disabled={
               disabled || (!value.trim() && attachments.length === 0)
             }
-            className="flex h-8 w-8 shrink-0 cursor-pointer items-center justify-center rounded-lg bg-accent text-accent-foreground transition-all duration-150 hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-30 disabled:hover:brightness-100"
+            className="flex h-9 w-9 shrink-0 cursor-pointer items-center justify-center rounded-full bg-accent text-accent-foreground transition-all duration-150 hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-30 disabled:hover:brightness-100"
             aria-label="Send"
           >
             <svg

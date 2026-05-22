@@ -279,13 +279,20 @@ async def translate_team_stream(
                     if tool_name == "delegate_task_to_member":
                         continue
                     result = getattr(event, "content", "")
+                    # 1000 chars was fine for tool-status SSE but
+                    # truncates list responses mid-JSON, which then
+                    # can't be parsed into card payloads on the
+                    # frontend. 50KB comfortably fits ~50 emails /
+                    # events with metadata. Tool results bigger than
+                    # this are uncommon and the agent's text reply
+                    # still carries the answer either way.
                     await out_queue.put(
                         _sse(
                             "tool_result",
                             {
                                 "tool_name": tool_name,
                                 "tool_call_id": tool_call_id,
-                                "result": str(result)[:1000],
+                                "result": str(result)[:50000],
                             },
                         )
                     )

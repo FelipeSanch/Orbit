@@ -6,6 +6,7 @@ import { MessageList } from "./message-list";
 import { ApprovalCard } from "@/components/approval/approval-card";
 import { useSSE } from "@/hooks/use-sse";
 import { sendChatMessage, approveAction } from "@/lib/api";
+import { parseToolResultForCards } from "@/lib/parse-tool-result";
 import { useActivityStore } from "@/stores/activity-store";
 import { useAuthStore } from "@/stores/auth-store";
 import { useChatStore } from "@/stores/chat-store";
@@ -104,6 +105,15 @@ export function ChatPanel() {
               errored ? "failed" : "approved",
               msg,
             );
+          }
+          // Capture list-style read results so the assistant message
+          // can render cards below the prose on finishStream. Writes,
+          // single-record reads, and errors return null and are
+          // ignored.
+          const toolName = event.data.tool_name as string | undefined;
+          const structured = parseToolResultForCards(toolName, result);
+          if (structured) {
+            useChatStore.getState().setPendingStructuredData(structured);
           }
           break;
         }

@@ -6,6 +6,7 @@ import type {
   ApprovalStatus,
   Conversation,
   Message,
+  StructuredData,
 } from "@/types/events";
 
 interface ChatState {
@@ -16,10 +17,16 @@ interface ChatState {
   pendingApprovals: Approval[];
   conversations: Conversation[];
   activeAbortController: AbortController | null;
+  // Per-turn cache: the most recent tool_result that parsed as a known
+  // list shape (emails/events/tasks). Reset on startStreaming, attached
+  // to the assistant message on finishStream so the bubble can render
+  // cards below the prose.
+  pendingStructuredData: StructuredData | null;
 
   addMessage: (message: Message) => void;
   appendDelta: (delta: string) => void;
   finishStream: (fullContent: string, kind?: "error") => void;
+  setPendingStructuredData: (data: StructuredData | null) => void;
   startStreaming: (controller: AbortController) => void;
   abortStream: () => void;
   setConversationId: (id: string) => void;
@@ -50,6 +57,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
   pendingApprovals: [],
   conversations: [],
   activeAbortController: null,
+  pendingStructuredData: null,
 
   addMessage: (message) =>
     set((state) => ({ messages: [...state.messages, message] })),
@@ -59,11 +67,14 @@ export const useChatStore = create<ChatState>((set, get) => ({
       streamingContent: state.streamingContent + delta,
     })),
 
+  setPendingStructuredData: (data) => set({ pendingStructuredData: data }),
+
   startStreaming: (controller) =>
     set({
       isStreaming: true,
       streamingContent: "",
       activeAbortController: controller,
+      pendingStructuredData: null,
     }),
 
   abortStream: () => {
@@ -81,6 +92,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
       isStreaming: false,
       streamingContent: "",
       activeAbortController: null,
+      pendingStructuredData: null,
       messages: [
         ...state.messages,
         {
@@ -89,6 +101,9 @@ export const useChatStore = create<ChatState>((set, get) => ({
           content: fullContent,
           createdAt: new Date().toISOString(),
           ...(kind ? { kind } : {}),
+          ...(state.pendingStructuredData
+            ? { structuredData: state.pendingStructuredData }
+            : {}),
         },
       ],
     })),

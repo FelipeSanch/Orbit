@@ -84,6 +84,47 @@ export interface Message {
   // alert icon) instead of an ordinary assistant reply. Never set on
   // messages loaded from the DB.
   kind?: "error";
+  // Optional structured payload captured from the last tool_result of
+  // the turn. The bubble renders compact cards below the prose when
+  // present (emails / events / tasks) instead of leaving them as bullet
+  // lists inside the chat text.
+  structuredData?: StructuredData;
+}
+
+export type StructuredData =
+  | { kind: "emails"; provider: string; items: EmailItem[] }
+  | { kind: "events"; provider: string; items: EventItem[] }
+  | { kind: "tasks"; provider: string; items: TaskItem[] };
+
+export interface EmailItem {
+  id: string;
+  subject: string;
+  from: string;
+  date: string;
+  snippet?: string;
+  is_read?: boolean;
+  has_attachments?: boolean;
+}
+
+export interface EventItem {
+  id: string;
+  title?: string;
+  summary?: string;
+  start?: string;
+  start_time?: string;
+  end?: string;
+  end_time?: string;
+  location?: string;
+  attendees?: string[];
+}
+
+export interface TaskItem {
+  id: string;
+  title: string;
+  due_date?: string;
+  due?: string;
+  status?: string;
+  list_id?: string;
 }
 
 export type ApprovalStatus =
