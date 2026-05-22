@@ -161,6 +161,14 @@ async def resume_approval(
                 ):
                     req.confirm()
 
+            # Watch for ToolCallStartedEvent matching the confirmed tool
+            # so we can detect Agno's #8029 silent-restart: leader runs a
+            # fresh turn that produces a normal-looking completion text
+            # without executing the confirmed tool. If saw_target_tool is
+            # false at end-of-stream, ignore the fake completion and fall
+            # through to direct tool execution — same pattern as the
+            # /api/chat/approve handler.
+            saw_target_tool = False
             final_content = ""
             async for ev in team.acontinue_run(  # type: ignore[union-attr]
                 run_id=run_id,
@@ -172,17 +180,31 @@ async def resume_approval(
             ):
                 ev_type = type(ev).__name__
                 if ev_type in (
+                    "ToolCallStartedEvent",
+                    "TeamToolCallStartedEvent",
+                ):
+                    tool = getattr(ev, "tool", None)
+                    if tool is not None and (
+                        getattr(tool, "tool_call_id", None) == tool_call_id
+                        or getattr(tool, "tool_name", None) == tool_name
+                    ):
+                        saw_target_tool = True
+                if ev_type in (
                     "TeamRunContentCompletedEvent",
                     "RunContentCompletedEvent",
                 ):
                     content = getattr(ev, "content", None)
                     if content:
                         final_content = content
-            if final_content:
+            if saw_target_tool and final_content:
                 return final_content.strip()
     except Exception as e:
         logger.warning("Agno resume failed, will fall back: %s", e)
 
-    # Fallback: invoke the tool directly
+    # Fallback: invoke the tool directly. Reached when:
+    #  - Agno's session lookup didn't find the paused run
+    #  - The continuation raised
+    #  - acontinue_run completed but never executed the confirmed tool
+    #    (the #8029 silent-restart case)
     ok, msg = await _run_tool_directly(user_id, tool_name, tool_args)
     return msg if ok else f"Couldn't complete that: {msg}"
