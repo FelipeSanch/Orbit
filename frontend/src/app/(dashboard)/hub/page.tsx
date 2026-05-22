@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { CosmicFrame } from "@/components/hub/cosmic-frame";
 import {
   ConnectModal,
@@ -207,6 +207,54 @@ export default function HubPage() {
     setZoom((z) => Math.max(ZOOM_MIN, Math.round((z - ZOOM_STEP) * 100) / 100));
   const zoomReset = () => setZoom(1);
 
+  // Canvas pan — Railway-style. mousedown on the bare canvas starts a
+  // drag; cards/buttons skip the drag because the handler bails when
+  // `closest('button, a, ...')` matches. Pan offset persists across
+  // zoom changes (the transform stacks translate then scale).
+  const [pan, setPan] = useState({ x: 0, y: 0 });
+  const [isDragging, setIsDragging] = useState(false);
+  const dragStart = useRef({ mouseX: 0, mouseY: 0, panX: 0, panY: 0 });
+
+  const handleCanvasMouseDown = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (
+      (e.target as HTMLElement).closest(
+        "button, a, input, textarea, [role=button], [data-no-drag]",
+      )
+    ) {
+      return;
+    }
+    setIsDragging(true);
+    dragStart.current = {
+      mouseX: e.clientX,
+      mouseY: e.clientY,
+      panX: pan.x,
+      panY: pan.y,
+    };
+    e.preventDefault();
+  };
+
+  useEffect(() => {
+    if (!isDragging) return;
+    const onMove = (e: MouseEvent) => {
+      setPan({
+        x: dragStart.current.panX + (e.clientX - dragStart.current.mouseX),
+        y: dragStart.current.panY + (e.clientY - dragStart.current.mouseY),
+      });
+    };
+    const onUp = () => setIsDragging(false);
+    window.addEventListener("mousemove", onMove);
+    window.addEventListener("mouseup", onUp);
+    return () => {
+      window.removeEventListener("mousemove", onMove);
+      window.removeEventListener("mouseup", onUp);
+    };
+  }, [isDragging]);
+
+  const resetView = () => {
+    setPan({ x: 0, y: 0 });
+    setZoom(1);
+  };
+
   const statusFor = (id: string): CardStatus => {
     if (id === "microsoft")
       return isMicrosoftConnected ? "connected" : "available";
@@ -410,14 +458,21 @@ export default function HubPage() {
         </div>
       </div>
 
-      {/* Canvas */}
-      <div className="relative z-10 min-h-0 flex-1 overflow-y-auto">
+      {/* Canvas — pan via mousedown drag on the empty background.
+          overflow-hidden because pan replaces scroll; clicking a card
+          / button skips the drag (see handleCanvasMouseDown). */}
+      <div
+        className={`relative z-10 min-h-0 flex-1 overflow-hidden ${
+          isDragging ? "cursor-grabbing" : "cursor-grab"
+        }`}
+        onMouseDown={handleCanvasMouseDown}
+      >
         <div
           className="relative mx-auto max-w-6xl px-6 py-5"
           style={{
-            transform: `scale(${zoom})`,
+            transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom})`,
             transformOrigin: "top center",
-            transition: "transform 150ms ease-out",
+            transition: isDragging ? "none" : "transform 150ms ease-out",
           }}
         >
           {sections.map(({ label, items }) => (
@@ -482,11 +537,11 @@ export default function HubPage() {
           </svg>
         </button>
         <button
-          onClick={zoomReset}
-          disabled={zoom === 1}
+          onClick={resetView}
+          disabled={zoom === 1 && pan.x === 0 && pan.y === 0}
           className="cursor-pointer rounded px-1 py-0.5 text-[10px] font-medium tabular-nums text-muted-foreground/80 transition-colors hover:bg-muted hover:text-foreground disabled:cursor-default disabled:opacity-50 disabled:hover:bg-transparent disabled:hover:text-muted-foreground/80"
-          aria-label="Reset zoom"
-          title="Reset zoom (100%)"
+          aria-label="Reset view"
+          title="Reset view (100% + center)"
         >
           {Math.round(zoom * 100)}%
         </button>
