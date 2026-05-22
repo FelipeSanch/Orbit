@@ -579,8 +579,9 @@ function HeroSection() {
           className="landing-hero-stagger max-w-lg text-lg leading-relaxed text-muted-foreground"
           style={{ animationDelay: "0.4s" }}
         >
-          A personal AI assistant for Outlook, Calendar, and Tasks. Real
-          tool calls, live activity feed, approval before any write.
+          A personal AI assistant for Outlook, Calendar, and Tasks —
+          plus Telegram as a peer channel. Real tool calls, live
+          activity feed, approval before any write.
         </p>
 
         <div
@@ -607,12 +608,12 @@ function HeroSection() {
 // ─── Tech stack strip — "Built on" ────────────────────────────────────
 
 const STACK = [
-  { label: "Claude Sonnet 4.6", sub: "Anthropic" },
+  { label: "Claude Sonnet + Haiku", sub: "Anthropic" },
   { label: "Agno", sub: "Multi-agent" },
   { label: "FastAPI", sub: "Python" },
   { label: "Next.js 16", sub: "App Router" },
   { label: "Neon", sub: "Postgres" },
-  { label: "Upstash", sub: "Redis" },
+  { label: "Telegram", sub: "Peer channel" },
 ];
 
 function StackStrip() {
@@ -1527,7 +1528,7 @@ function HowItWorksSection() {
       number: "02",
       title: "Ask in plain English",
       description:
-        "No commands to memorize. A team-leader agent reads your request, routes to the right specialist — mail, calendar, or tasks — and streams the work back to you in real time.",
+        "No commands to memorize. Use the web dashboard or message @orbit101bot on Telegram — same agents, same memory, same approval flow on both. A team-leader agent reads your request, routes to the right specialist (mail, calendar, or tasks), and streams the work back to you in real time.",
       illustration: <StepIllustrationChat />,
     },
     {
