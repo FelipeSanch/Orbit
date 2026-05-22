@@ -105,9 +105,27 @@ export function Sidebar() {
   }, [session?.token, setConversations, isStreaming]);
 
   const handleSignOut = async () => {
-    await authClient.signOut();
+    // Server-side: Better Auth invalidates the session row and sends
+    // Set-Cookie to clear both `better-auth.session_token` and the
+    // `__Secure-` prefixed variant. Wrap in try/catch so a failed
+    // server call (offline, 5xx) still nukes the client state.
+    try {
+      await authClient.signOut();
+    } catch {
+      // ignore — we'll force-clear the client anyway
+    }
+    // Client-side: wipe every per-user store so a different account
+    // signing in from the same tab doesn't see leaked state.
     useAuthStore.getState().clear();
-    router.push("/");
+    useChatStore.getState().reset();
+    useActivityStore.getState().clearActivities();
+    // Full document navigation (not router.push). router.push is a
+    // client-side transition that bypasses middleware; the next page
+    // would render with whatever auth state was already in memory.
+    // window.location forces a real HTTP request — middleware re-runs
+    // with the freshly-cleared cookie set, so /login renders properly
+    // instead of bouncing to /chat under a stale cookie.
+    window.location.href = "/login";
   };
 
   const handleNewChat = () => {

@@ -14,9 +14,13 @@ const SESSION_COOKIE_NAMES = [
 ];
 
 export async function middleware(request: NextRequest) {
+  // Treat empty-value cookies as absent. A signed-out browser sometimes
+  // briefly holds an emptied cookie before the Set-Cookie clear takes
+  // full effect; without this check, an emptied cookie would still
+  // count as "authenticated" and bounce /login → /chat under no session.
   const sessionCookie = SESSION_COOKIE_NAMES.map((n) =>
     request.cookies.get(n),
-  ).find(Boolean);
+  ).find((c) => c && c.value);
   const { pathname } = request.nextUrl;
 
   const isPublic =
