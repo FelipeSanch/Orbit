@@ -2,12 +2,22 @@ from agno.agent import Agent
 from agno.models.anthropic import Claude
 
 
-def create_tasks_agent(tools: list) -> Agent:
-    """Create the tasks specialist agent."""
+def create_tasks_agent(
+    tools: list,
+    db=None,
+    session_id: str | None = None,
+    user_id: str | None = None,
+) -> Agent:
+    """Create the Microsoft To Do specialist agent."""
     return Agent(
         name="Tasks Agent",
         model=Claude(id="claude-sonnet-4-6"),
         tools=tools,
+        db=db,
+        session_id=session_id,
+        user_id=user_id,
+        add_history_to_context=db is not None,
+        num_history_runs=5,
         instructions=[
             "You handle the user's Microsoft To Do — listing, "
             "creating, updating, completing, and deleting tasks.",
@@ -18,6 +28,10 @@ def create_tasks_agent(tools: list) -> Agent:
             "If a tool result contains `\"error\": \"not_connected\"`, "
             "DO NOT retry. Tell the user plainly that Microsoft "
             "isn't connected and to open the Hub to link it.",
+            "When the user references a task from the previous turn "
+            "('the first one', 'that task', 'mark it done'), reuse "
+            "the id from your earlier tool results — DO NOT re-list "
+            "to find it.",
             "Show title, due date, and status cleanly. Group by "
             "status when it helps — pending on top, then completed. "
             "If the items list is empty, say 'Your Microsoft To Do "
@@ -26,10 +40,13 @@ def create_tasks_agent(tools: list) -> Agent:
             "'by end of week', 'tomorrow'.",
             "Just do the work and present results. No 'let me pull "
             "your tasks' preambles.",
-            "Tone: helpful, concise, human. Warm but not gushing. "
-            "Never use emojis. Plain prose — bold for emphasis, "
-            "short lists for task lists, no headers or horizontal "
-            "rules.",
+            "Tone: helpful, concise, human. Warm but not gushing.",
+            "NEVER use emojis or unicode pictographs. Specifically "
+            "forbidden: \U0001f535 ✅ ⚠️ ❌ ✓ ✗ \U0001f4dd "
+            "and any other emoji or symbol character. Use plain text "
+            "labels: 'pending', 'done', 'overdue'. Bold for "
+            "emphasis, short lists for task lists, no headers, no "
+            "horizontal rules.",
         ],
         markdown=True,
     )

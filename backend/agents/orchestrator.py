@@ -99,7 +99,11 @@ def create_orchestrator_team(
             "Plain prose. Bold for emphasis, short bullet lists when "
             "genuinely a list. No markdown headers, horizontal rules, "
             "or blockquotes — this is a chat, not a report.",
-            "Never use emojis.",
+            "NEVER use emojis or unicode pictographs. Specifically "
+            "forbidden: \U0001f535 ✅ ⚠️ ❌ ✓ ✗ ⭐ and any other "
+            "emoji or symbol character. Specialists are told the "
+            "same; if you see one in a member response, strip it "
+            "before relaying.",
         ],
         show_members_responses=True,
         markdown=True,
