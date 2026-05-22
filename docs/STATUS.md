@@ -12,7 +12,7 @@ integration. Web dashboard is hosting-ready.
 ## What's Built and Working
 
 ### Backend (Python/FastAPI)
-- **Orchestrator**: Agno Team in route mode with 3 specialist agents (email, calendar, tasks), all using `claude-sonnet-4-6`
+- **Orchestrator**: Agno Team in route mode. The team leader runs `claude-haiku-4-5-20251001` (routing is a classification task — Haiku keeps time-to-first-token low). The three specialist agents (email, calendar, tasks) run `claude-sonnet-4-6` for tool selection and synthesis.
 - **SSE streaming**: Full event translator pipeline — content deltas, tool calls/results, agent delegations, approval events, error handling. Handles both `TeamRun*Event` and `Run*Event` (Agno quirk in route mode)
 - **Email tools**: `list_emails`, `get_email`, `search_emails`, `send_email`, `reply_to_email`, `trash_email`, `move_email`, `get_attachments` (reads text attachments inline via base64 decode, returns binary file info for others)
 - **Calendar tools**: `list_events`, `get_event`, `create_event`, `update_event`, `delete_event`

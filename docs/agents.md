@@ -13,7 +13,10 @@ Orchestrator (Team Leader)
 
 ## Orchestrator
 
-- **Model:** Claude Sonnet 4.6
+- **Model:** Claude Haiku 4.5 (`claude-haiku-4-5-20251001`) — routing is a
+  classification task, so the cheaper/faster model keeps time-to-first-token
+  low without quality loss. Specialists stay on Sonnet 4.6 because they do
+  the real work (tool selection, content synthesis).
 - **Mode:** Route — analyzes message, delegates to one specialist
 - **Memory:** Agno Memory with PostgresMemoryDb (stores user preferences across sessions)
 - **Storage:** PostgresStorage (persists session history)

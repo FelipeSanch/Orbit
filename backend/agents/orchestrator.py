@@ -16,7 +16,7 @@ def create_orchestrator_team(
     team = Team(
         name="Orbit",
         mode="route",
-        model=Claude(id="claude-sonnet-4-6"),
+        model=Claude(id="claude-haiku-4-5-20251001"),
         members=[email_agent, calendar_agent, tasks_agent],
         db=get_agno_db(),
         session_id=session_id,
